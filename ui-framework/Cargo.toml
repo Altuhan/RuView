@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = ["crates/kite-core", "crates/kite-compiler"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Altuhan/RuView"
+
+[workspace.dependencies]
+kite-core = { path = "crates/kite-core", version = "0.1.0", default-features = false }
+kite-compiler = { path = "crates/kite-compiler", version = "0.1.0" }
+kite-build = { path = "crates/kite-build", version = "0.1.0" }
+kite-headless = { path = "crates/kite-headless", version = "0.1.0" }
+kite-winit = { path = "crates/kite-winit", version = "0.1.0" }
+kite-web = { path = "crates/kite-web", version = "0.1.0" }
+kite-embedded = { path = "crates/kite-embedded", version = "0.1.0" }
+kite = { path = "crates/kite", version = "0.1.0", default-features = false }
+libm = "0.2"
+png = "0.17"
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"] }
+softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+embedded-graphics-core = "0.4"
