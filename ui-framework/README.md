@@ -91,6 +91,7 @@ Other `kite` commands:
 | `kite-web` | Browser backend (WASM, `<canvas>`) | — |
 | `kite-embedded` | MCU backend (`embedded-graphics` `DrawTarget`, touch input) | yes |
 | `kite-headless` | PNG rendering and input simulation for tests | — |
+| `kite-android` | Android host: JNI glue for the Kotlin `KiteView` | — |
 | `kite-cli` | The `kite` command | — |
 
 ## Examples
@@ -102,6 +103,7 @@ Other `kite` commands:
 | `examples/ui/gallery.ui` | All widgets, components, `@children`, two-way bindings | `kite preview examples/ui/gallery.ui` |
 | `examples/counter` | Build-time codegen, Rust callbacks, headless tests | `cargo run -p kite-example-counter` |
 | `examples/web-counter` | The counter in the browser | see [its README](examples/web-counter/README.md) |
+| `examples/android-pos` | The POS as a native Android app (Kotlin `KiteView` + Rust via JNI) | see [its README](examples/android-pos/README.md) |
 | `examples/embedded-thermostat` | `no_std` UI for a 320×240 RGB565 display | `cargo test -p kite-example-thermostat` |
 
 ## Status and limits

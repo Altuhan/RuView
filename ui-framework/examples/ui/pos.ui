@@ -177,7 +177,7 @@ export component Register inherits Window {
 
             HorizontalLayout {
                 spacing: 10px;
-                TextInput {
+                plu := TextInput {
                     placeholder-text: "Scan barcode or type a PLU, then Enter";
                     accepted(code) => {
                         if code == "4011" {

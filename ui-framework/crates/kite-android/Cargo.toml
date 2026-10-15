@@ -1,0 +1,15 @@
+[package]
+name = "kite-android"
+description = "Run Kite components inside Android apps: a JNI host for the Kotlin KiteView"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+kite-core = { workspace = true, features = ["std"] }
+jni = "0.21"
+
+[dev-dependencies]
+kite-compiler.workspace = true

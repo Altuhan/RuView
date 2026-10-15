@@ -672,6 +672,14 @@ impl ComponentInstance {
         self.inner.state.borrow().needs_redraw
     }
 
+    /// Whether a text field has keyboard focus (mobile hosts show the
+    /// on-screen keyboard while this is true).
+    pub fn text_input_focused(&self) -> bool {
+        let st = self.inner.state.borrow();
+        st.focused
+            .is_some_and(|e| st.kind(e) == ElementKind::TextInput)
+    }
+
     /// Element id that currently has keyboard focus.
     pub fn focused_element(&self) -> Option<String> {
         let st = self.inner.state.borrow();

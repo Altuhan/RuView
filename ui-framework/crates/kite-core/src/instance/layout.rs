@@ -158,9 +158,7 @@ impl State {
     }
 
     pub(crate) fn clear_constraint_cache(&mut self) {
-        for c in &mut self.constraint_cache {
-            *c = [None, None];
-        }
+        self.constraint_cache.fill([None, None]);
     }
 
     /// Layout constraints of `e` along one axis (memoized per layout pass).

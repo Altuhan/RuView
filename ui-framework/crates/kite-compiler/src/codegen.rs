@@ -230,7 +230,10 @@ impl Gen<'_> {
             self.out,
             "#[derive(Clone)]\npub struct {name} {{\n    instance: {rt}::ComponentInstance,\n}}\n"
         );
-        let _ = writeln!(self.out, "#[allow(dead_code, clippy::all)]\nimpl {name} {{");
+        let _ = writeln!(
+            self.out,
+            "#[allow(dead_code, unused_mut, clippy::all)]\nimpl {name} {{"
+        );
         let _ = writeln!(self.out, "    /// Creates a new instance.\n    pub fn new() -> Self {{\n        Self {{ instance: {rt}::ComponentInstance::new({rt}::__private::Rc::new(Self::definition())) }}\n    }}\n");
         let _ = writeln!(self.out, "    /// The underlying dynamic instance.\n    pub fn instance(&self) -> &{rt}::ComponentInstance {{\n        &self.instance\n    }}\n");
         for p in &def.public_properties {
