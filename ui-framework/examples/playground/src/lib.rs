@@ -192,3 +192,12 @@ pub fn rust_api(source: &str) -> String {
     }
     out.join("\n")
 }
+
+/// Geometry `[x, y, width, height]` of the element with `id` (for tests).
+#[wasm_bindgen]
+pub fn element_rect(id: &str) -> Vec<f32> {
+    current()
+        .and_then(|app| app.element_geometry(id).ok())
+        .map(|g| vec![g.x, g.y, g.width, g.height])
+        .unwrap_or_default()
+}

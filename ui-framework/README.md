@@ -98,6 +98,7 @@ Other `kite` commands:
 | Example | Shows | Run |
 |---|---|---|
 | `examples/playground` | Live `.ui` editor in the browser (compiler runs as WASM) | see [its README](examples/playground/README.md) |
+| `examples/ui/pos.ui` | Retail point-of-sale register: catalog, PLU entry, cart, discount, tax, card/cash payment | `kite preview examples/ui/pos.ui` |
 | `examples/ui/gallery.ui` | All widgets, components, `@children`, two-way bindings | `kite preview examples/ui/gallery.ui` |
 | `examples/counter` | Build-time codegen, Rust callbacks, headless tests | `cargo run -p kite-example-counter` |
 | `examples/web-counter` | The counter in the browser | see [its README](examples/web-counter/README.md) |

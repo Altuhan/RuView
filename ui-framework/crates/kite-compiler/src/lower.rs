@@ -1190,6 +1190,7 @@ impl<'a> Lowerer<'a> {
             Rgba => (vec![Type::Float; 4], Type::Color),
             Darker | Brighter | Fade => (vec![Type::Color, Type::Float], Type::Color),
             Mix => (vec![Type::Color, Type::Color, Type::Float], Type::Color),
+            Fixed => (vec![Type::Float, Type::Int], Type::String),
         };
         if lowered.len() != params.len() {
             self.err(

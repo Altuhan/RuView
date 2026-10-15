@@ -64,10 +64,12 @@ pub enum BuiltinFn {
     Brighter,
     Fade,
     Mix,
+    /// `fixed(x, n)`: `x` formatted with `n` decimals, e.g. money.
+    Fixed,
 }
 
 impl BuiltinFn {
-    pub const ALL: [BuiltinFn; 14] = [
+    pub const ALL: [BuiltinFn; 15] = [
         BuiltinFn::Min,
         BuiltinFn::Max,
         BuiltinFn::Abs,
@@ -82,6 +84,7 @@ impl BuiltinFn {
         BuiltinFn::Brighter,
         BuiltinFn::Fade,
         BuiltinFn::Mix,
+        BuiltinFn::Fixed,
     ];
 
     pub fn name(self) -> &'static str {
@@ -100,6 +103,7 @@ impl BuiltinFn {
             BuiltinFn::Brighter => "brighter",
             BuiltinFn::Fade => "fade",
             BuiltinFn::Mix => "mix",
+            BuiltinFn::Fixed => "fixed",
         }
     }
 

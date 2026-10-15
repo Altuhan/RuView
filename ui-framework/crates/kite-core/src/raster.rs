@@ -271,33 +271,51 @@ impl<'a> Canvas<'a> {
             let in_corner_band = gy < r.y + radius || gy + 1.0 > r.bottom() - radius;
             let row_cov = cov(gy + 1.0 - r.y).min(cov(r.bottom() - gy));
             if in_corner_band && radius > 0.5 {
-                for x in x0..x1 {
+                // Curved coverage only within `radius` of the left/right
+                // edges; between the corners the row is a straight edge.
+                let cl = (libm::ceilf(r.x + radius + 1.0).max(0.0) as u32).clamp(x0, x1);
+                let cr = (libm::floorf(r.right() - radius - 1.0).max(0.0) as u32).clamp(cl, x1);
+                for x in (x0..cl).chain(cr..x1) {
                     let d = sd_round_box(x as f32 + 0.5, gy + 0.5, cx, cy, hx, hy, radius);
                     self.put(x, y, color, cov(0.5 - d));
                 }
+                let rc = row_cov * cov(gy + 1.0 - self.clip.y).min(cov(self.clip.bottom() - gy));
+                let mid0 = (libm::ceilf(self.clip.x).max(0.0) as u32).clamp(cl, cr);
+                let mid1 = (libm::floorf(self.clip.right()).max(0.0) as u32).clamp(mid0, cr);
+                if rc >= 1.0 {
+                    self.target.fill_span(mid0, mid1, y, color);
+                } else if rc > 0.002 {
+                    let a = (rc * 255.0 + 0.5) as u8;
+                    for x in mid0..mid1 {
+                        self.target.blend(x, y, color, a);
+                    }
+                }
+                for x in (cl..mid0).chain(mid1..cr) {
+                    self.put(x, y, color, row_cov);
+                }
                 continue;
             }
-            // Straight band: only edge pixels are partial; fill full runs as spans.
-            let pixel_cov = |s: &Self, x: u32| {
-                let gx = x as f32;
-                cov(gx + 1.0 - r.x).min(cov(r.right() - gx)) * row_cov * s.clip_cov(x, y)
-            };
-            let mut x = x0;
-            while x < x1 {
-                let c = pixel_cov(self, x);
-                if c >= 1.0 {
-                    let mut end = x + 1;
-                    while end < x1 && pixel_cov(self, end) >= 1.0 {
-                        end += 1;
-                    }
-                    self.target.fill_span(x, end, y, color);
-                    x = end;
-                } else {
-                    if c > 0.002 {
-                        self.target.blend(x, y, color, (c * 255.0 + 0.5) as u8);
-                    }
-                    x += 1;
+            // Straight band: the interior is one solid span; only the
+            // pixels at the left/right edges are partially covered.
+            let gy1 = gy + 1.0;
+            let row_clip = cov(gy1 - self.clip.y).min(cov(self.clip.bottom() - gy));
+            let rc = row_cov * row_clip;
+            let left = r.x.max(self.clip.x);
+            let right = r.right().min(self.clip.right());
+            let ix0 = (libm::ceilf(left).max(0.0) as u32).clamp(x0, x1);
+            let ix1 = (libm::floorf(right).max(0.0) as u32).clamp(ix0, x1);
+            if rc >= 1.0 {
+                self.target.fill_span(ix0, ix1, y, color);
+            } else if rc > 0.002 {
+                let a = (rc * 255.0 + 0.5) as u8;
+                for x in ix0..ix1 {
+                    self.target.blend(x, y, color, a);
                 }
+            }
+            for x in (x0..ix0).chain(ix1..x1) {
+                let gx = x as f32;
+                let col = cov(gx + 1.0 - r.x).min(cov(r.right() - gx));
+                self.put(x, y, color, col * row_cov);
             }
         }
     }
@@ -314,14 +332,30 @@ impl<'a> Canvas<'a> {
         let radius = radius.clamp(0.0, r.width.min(r.height) / 2.0);
         let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
         let (hx, hy) = (r.width / 2.0, r.height / 2.0);
+        // Only the outline band can be covered: rows near the top/bottom edge
+        // (or inside a corner) need a full scan, other rows just their two edges.
+        let band = radius.max(width) + 1.5;
+        let edge = width + 1.5;
         for y in y0..y1 {
             let gy = y as f32 + self.offset_y + 0.5;
-            for x in x0..x1 {
-                let d = sd_round_box(x as f32 + 0.5, gy, cx, cy, hx, hy, radius);
-                let c = cov(0.5 - d) * cov(d + width + 0.5);
-                if c > 0.0 {
-                    self.put(x, y, color, c);
+            let full_row = gy < r.y + band || gy > r.bottom() - band;
+            let stroke = |s: &mut Self, xa: u32, xb: u32| {
+                for x in xa..xb {
+                    let d = sd_round_box(x as f32 + 0.5, gy, cx, cy, hx, hy, radius);
+                    let c = cov(0.5 - d) * cov(d + width + 0.5);
+                    if c > 0.0 {
+                        s.put(x, y, color, c);
+                    }
                 }
+            };
+            if full_row {
+                stroke(self, x0, x1);
+            } else {
+                let left_end = (libm::ceilf(r.x + edge).max(0.0) as u32).clamp(x0, x1);
+                let right_start =
+                    (libm::floorf(r.right() - edge).max(0.0) as u32).clamp(left_end, x1);
+                stroke(self, x0, left_end);
+                stroke(self, right_start, x1);
             }
         }
     }

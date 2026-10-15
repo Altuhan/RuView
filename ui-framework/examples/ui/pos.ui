@@ -1,0 +1,446 @@
+// Green Valley Market: a point-of-sale register written in Kite.
+// Preview: kite preview examples/ui/pos.ui
+//
+// Kite has no list repeaters yet, so the catalog is a fixed set of products:
+// each product has a quantity, a tile in the grid, and a cart line that is
+// only visible while the quantity is above zero.
+
+// A category filter chip.
+component Chip inherits Rectangle {
+    in property <string> key;
+    in property <string> label;
+    in-out property <string> current;
+    background: current == key ? #0f172a : (touch.has-hover ? #e2e8f0 : #ffffff);
+    border-radius: 17px;
+    horizontal-stretch: 0;
+    height: 34px;
+    border-width: 1px;
+    border-color: current == key ? #0f172a : #cbd5e1;
+    touch := TouchArea { clicked => { current = key; } }
+    HorizontalLayout {
+        padding: 8px;
+        Text {
+            text: "  " + root.label + "  ";
+            color: root.current == root.key ? #ffffff : #334155;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// A product in the grid. Clicking adds one to the cart.
+component Tile inherits Rectangle {
+    in property <string> name;
+    in property <string> unit;
+    in property <float> price;
+    in property <color> tint;
+    in-out property <int> qty;
+    background: touch.pressed ? #eef2ff : #ffffff;
+    border-radius: 12px;
+    border-width: touch.has-hover ? 2px : 1px;
+    border-color: touch.has-hover ? #4f46e5 : #e2e8f0;
+    height: 96px;
+    preferred-width: 120px;
+    min-width: 0px;
+    horizontal-stretch: 1;
+    touch := TouchArea { clicked => { qty += 1; } }
+    VerticalLayout {
+        padding: 12px;
+        spacing: 3px;
+        HorizontalLayout {
+            Rectangle { width: 28px; height: 6px; border-radius: 3px; background: root.tint; }
+            Rectangle { }
+        }
+        Text { text: root.name; font-size: 15px; color: #0f172a; }
+        Text { text: root.unit; font-size: 11px; color: #64748b; }
+        Text { text: "$" + fixed(root.price, 2); font-size: 18px; color: #4338ca; }
+    }
+    Rectangle {
+        visible: root.qty > 0;
+        x: parent.width - 36px;
+        y: 8px;
+        width: 28px;
+        height: 22px;
+        border-radius: 11px;
+        background: #4f46e5;
+        Text { text: root.qty; color: #ffffff; font-size: 12px; }
+    }
+}
+
+// A line in the cart.
+component CartLine inherits HorizontalLayout {
+    in property <string> name;
+    in property <float> price;
+    in-out property <int> qty;
+    visible: qty > 0;
+    spacing: 6px;
+    Text {
+        text: root.name;
+        horizontal-stretch: 1;
+        vertical-alignment: center;
+        color: #0f172a;
+    }
+    Button { text: "-"; width: 30px; clicked => { qty -= 1; } }
+    Text { text: root.qty; width: 22px; horizontal-alignment: center; vertical-alignment: center; }
+    Button { text: "+"; width: 30px; clicked => { qty += 1; } }
+    Text {
+        text: "$" + fixed(root.qty * root.price, 2);
+        width: 66px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        color: #0f172a;
+    }
+}
+
+// A label/amount row in the totals.
+component TotalRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> amount;
+    in property <bool> strong;
+    Text { text: root.label; color: root.strong ? #0f172a : #64748b; font-size: root.strong ? 18px : 14px; }
+    Text {
+        text: root.amount;
+        horizontal-alignment: right;
+        color: #0f172a;
+        font-size: root.strong ? 18px : 14px;
+    }
+}
+
+export component Register inherits Window {
+    title: "Green Valley Market - Register 2";
+    width: 980px;
+    height: 720px;
+    background: #f1f5f9;
+
+    // Settings and state the Rust side can read and write.
+    in property <float> tax-rate: 0.08;
+    in-out property <bool> member;
+    out property <int> items: q-bananas + q-apples + q-avocados + q-tomatoes
+        + q-sourdough + q-croissant + q-bagels + q-baguette
+        + q-milk + q-yogurt + q-eggs + q-cheddar
+        + q-coffee + q-juice + q-water + q-olive-oil;
+    out property <float> subtotal: q-bananas * bananas.price + q-apples * apples.price
+        + q-avocados * avocados.price + q-tomatoes * tomatoes.price
+        + q-sourdough * sourdough.price + q-croissant * croissant.price
+        + q-bagels * bagels.price + q-baguette * baguette.price
+        + q-milk * milk.price + q-yogurt * yogurt.price
+        + q-eggs * eggs.price + q-cheddar * cheddar.price
+        + q-coffee * coffee.price + q-juice * juice.price
+        + q-water * water.price + q-olive-oil * olive-oil.price;
+    out property <float> discount: member ? subtotal * 0.1 : 0;
+    out property <float> tax: (subtotal - discount) * tax-rate;
+    out property <float> total: round((subtotal - discount + tax) * 100) / 100;
+    out property <string> screen: "sale";
+    out property <string> method: "card";
+    out property <float> tendered;
+    out property <float> change: max(0, tendered - total);
+
+    // Raised when a sale completes: (amount, "card" or "cash").
+    callback checkout(float, string);
+
+    property <string> category: "all";
+    property <string> scan-note: "Try PLU 4011, 4131, 4046 or 4087";
+
+    property <int> q-bananas;
+    property <int> q-apples;
+    property <int> q-avocados;
+    property <int> q-tomatoes;
+    property <int> q-sourdough;
+    property <int> q-croissant;
+    property <int> q-bagels;
+    property <int> q-baguette;
+    property <int> q-milk;
+    property <int> q-yogurt;
+    property <int> q-eggs;
+    property <int> q-cheddar;
+    property <int> q-coffee;
+    property <int> q-juice;
+    property <int> q-water;
+    property <int> q-olive-oil;
+
+    HorizontalLayout {
+        // ---- Catalog ----
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            horizontal-stretch: 1;
+
+            HorizontalLayout {
+                Text { text: "Green Valley Market"; font-size: 24px; color: #0f172a; }
+                Text {
+                    text: "Register 2  ·  Cashier: Dana";
+                    color: #64748b;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                TextInput {
+                    placeholder-text: "Scan barcode or type a PLU, then Enter";
+                    accepted(code) => {
+                        if code == "4011" {
+                            root.q-bananas += 1;
+                            root.scan-note = "Added Bananas";
+                        } else if code == "4131" {
+                            root.q-apples += 1;
+                            root.scan-note = "Added Fuji apples";
+                        } else if code == "4046" {
+                            root.q-avocados += 1;
+                            root.scan-note = "Added Hass avocado";
+                        } else if code == "4087" {
+                            root.q-tomatoes += 1;
+                            root.scan-note = "Added Roma tomatoes";
+                        } else {
+                            root.scan-note = "No product with code " + code;
+                        }
+                        self.text = "";
+                    }
+                }
+                Text {
+                    text: root.scan-note;
+                    width: 250px;
+                    vertical-alignment: center;
+                    color: #475569;
+                    font-size: 13px;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Chip { key: "all"; label: "All"; current <=> root.category; }
+                Chip { key: "produce"; label: "Produce"; current <=> root.category; }
+                Chip { key: "bakery"; label: "Bakery"; current <=> root.category; }
+                Chip { key: "dairy"; label: "Dairy & eggs"; current <=> root.category; }
+                Chip { key: "pantry"; label: "Pantry"; current <=> root.category; }
+            }
+
+            VerticalLayout {
+                spacing: 10px;
+                alignment: start;
+                vertical-stretch: 1;
+
+                VerticalLayout {
+                    visible: category == "all" || category == "produce";
+                    spacing: 6px;
+                    Text { text: "PRODUCE"; font-size: 11px; color: #64748b; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        bananas := Tile { name: "Bananas"; unit: "per lb  ·  PLU 4011"; price: 0.69; tint: #eab308; qty <=> root.q-bananas; }
+                        apples := Tile { name: "Fuji apples"; unit: "per lb  ·  PLU 4131"; price: 1.99; tint: #dc2626; qty <=> root.q-apples; }
+                        avocados := Tile { name: "Hass avocado"; unit: "each  ·  PLU 4046"; price: 1.25; tint: #16a34a; qty <=> root.q-avocados; }
+                        tomatoes := Tile { name: "Roma tomatoes"; unit: "per lb  ·  PLU 4087"; price: 1.49; tint: #ef4444; qty <=> root.q-tomatoes; }
+                    }
+                }
+                VerticalLayout {
+                    visible: category == "all" || category == "bakery";
+                    spacing: 6px;
+                    Text { text: "BAKERY"; font-size: 11px; color: #64748b; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        sourdough := Tile { name: "Sourdough loaf"; unit: "800 g"; price: 5.50; tint: #a16207; qty <=> root.q-sourdough; }
+                        croissant := Tile { name: "Butter croissant"; unit: "each"; price: 2.25; tint: #d97706; qty <=> root.q-croissant; }
+                        bagels := Tile { name: "Bagels"; unit: "6 pack"; price: 4.99; tint: #b45309; qty <=> root.q-bagels; }
+                        baguette := Tile { name: "Baguette"; unit: "each"; price: 3.25; tint: #92400e; qty <=> root.q-baguette; }
+                    }
+                }
+                VerticalLayout {
+                    visible: category == "all" || category == "dairy";
+                    spacing: 6px;
+                    Text { text: "DAIRY & EGGS"; font-size: 11px; color: #64748b; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        milk := Tile { name: "Whole milk"; unit: "1 gal"; price: 4.29; tint: #0ea5e9; qty <=> root.q-milk; }
+                        yogurt := Tile { name: "Greek yogurt"; unit: "5.3 oz"; price: 1.79; tint: #38bdf8; qty <=> root.q-yogurt; }
+                        eggs := Tile { name: "Free-range eggs"; unit: "dozen"; price: 5.49; tint: #f59e0b; qty <=> root.q-eggs; }
+                        cheddar := Tile { name: "Aged cheddar"; unit: "8 oz"; price: 3.99; tint: #f97316; qty <=> root.q-cheddar; }
+                    }
+                }
+                VerticalLayout {
+                    visible: category == "all" || category == "pantry";
+                    spacing: 6px;
+                    Text { text: "PANTRY"; font-size: 11px; color: #64748b; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        coffee := Tile { name: "Coffee beans"; unit: "12 oz"; price: 11.99; tint: #78350f; qty <=> root.q-coffee; }
+                        juice := Tile { name: "Orange juice"; unit: "52 fl oz"; price: 3.79; tint: #fb923c; qty <=> root.q-juice; }
+                        water := Tile { name: "Sparkling water"; unit: "1 L"; price: 1.25; tint: #22d3ee; qty <=> root.q-water; }
+                        olive-oil := Tile { name: "Olive oil"; unit: "500 ml"; price: 9.49; tint: #65a30d; qty <=> root.q-olive-oil; }
+                    }
+                }
+            }
+        }
+
+        // ---- Cart ----
+        Rectangle {
+            width: 350px;
+            background: #ffffff;
+            border-width: 1px;
+            border-color: #e2e8f0;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    Text { text: "Current sale"; font-size: 20px; color: #0f172a; }
+                    Text {
+                        text: items == 1 ? "1 item" : "\{items} items";
+                        horizontal-alignment: right;
+                        vertical-alignment: center;
+                        color: #64748b;
+                    }
+                }
+
+                Rectangle {
+                    clip: true;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        Text {
+                            visible: items == 0;
+                            text: "Tap a product or scan a barcode\nto start a sale.";
+                            color: #94a3b8;
+                        }
+                        CartLine { name: bananas.name; price: bananas.price; qty <=> root.q-bananas; }
+                        CartLine { name: apples.name; price: apples.price; qty <=> root.q-apples; }
+                        CartLine { name: avocados.name; price: avocados.price; qty <=> root.q-avocados; }
+                        CartLine { name: tomatoes.name; price: tomatoes.price; qty <=> root.q-tomatoes; }
+                        CartLine { name: sourdough.name; price: sourdough.price; qty <=> root.q-sourdough; }
+                        CartLine { name: croissant.name; price: croissant.price; qty <=> root.q-croissant; }
+                        CartLine { name: bagels.name; price: bagels.price; qty <=> root.q-bagels; }
+                        CartLine { name: baguette.name; price: baguette.price; qty <=> root.q-baguette; }
+                        CartLine { name: milk.name; price: milk.price; qty <=> root.q-milk; }
+                        CartLine { name: yogurt.name; price: yogurt.price; qty <=> root.q-yogurt; }
+                        CartLine { name: eggs.name; price: eggs.price; qty <=> root.q-eggs; }
+                        CartLine { name: cheddar.name; price: cheddar.price; qty <=> root.q-cheddar; }
+                        CartLine { name: coffee.name; price: coffee.price; qty <=> root.q-coffee; }
+                        CartLine { name: juice.name; price: juice.price; qty <=> root.q-juice; }
+                        CartLine { name: water.name; price: water.price; qty <=> root.q-water; }
+                        CartLine { name: olive-oil.name; price: olive-oil.price; qty <=> root.q-olive-oil; }
+                    }
+                }
+
+                CheckBox { text: "Loyalty member (10% off)"; checked <=> root.member; }
+                Rectangle { height: 1px; background: #e2e8f0; }
+                TotalRow { label: "Subtotal"; amount: "$" + fixed(subtotal, 2); }
+                TotalRow { label: "Member discount"; amount: "-$" + fixed(discount, 2); visible: member; }
+                TotalRow { label: "Tax (\{round(tax-rate * 100)}%)"; amount: "$" + fixed(tax, 2); }
+                TotalRow { label: "Total"; amount: "$" + fixed(total, 2); strong: true; }
+                charge := Button {
+                    text: items == 0 ? "Add items to charge" : "Charge $" + fixed(total, 2);
+                    primary: true;
+                    enabled: items > 0;
+                    height: 48px;
+                    font-size: 16px;
+                    clicked => {
+                        root.method = "card";
+                        root.tendered = 0;
+                        root.screen = "pay";
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Payment and receipt (modal) ----
+    Rectangle {
+        visible: screen != "sale";
+        background: #0f172aaa;
+        TouchArea { }
+
+        Rectangle {
+            visible: screen == "pay";
+            width: 420px;
+            height: 380px;
+            background: #ffffff;
+            border-radius: 16px;
+            VerticalLayout {
+                padding: 24px;
+                spacing: 12px;
+                Text { text: "Amount due"; color: #64748b; }
+                Text { text: "$" + fixed(total, 2); font-size: 44px; color: #0f172a; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Chip { key: "card"; label: "Card"; current <=> root.method; }
+                    cash-chip := Chip { key: "cash"; label: "Cash"; current <=> root.method; }
+                }
+                Text {
+                    visible: method == "card";
+                    text: "Ask the customer to tap, insert or swipe\ntheir card on the terminal.";
+                    color: #475569;
+                }
+                HorizontalLayout {
+                    visible: method == "cash";
+                    spacing: 8px;
+                    Button { text: "Exact"; clicked => { root.tendered = total; } }
+                    Button { text: "$20"; clicked => { root.tendered = 20; } }
+                    tender-fifty := Button { text: "$50"; clicked => { root.tendered = 50; } }
+                    Button { text: "$100"; clicked => { root.tendered = 100; } }
+                }
+                Text {
+                    visible: method == "cash";
+                    text: tendered == 0 ? "Choose the cash received."
+                        : tendered < total ? "Short by $" + fixed(total - tendered, 2)
+                        : "Change due: $" + fixed(change, 2);
+                    color: tendered > 0 && tendered < total ? #b91c1c : #0f172a;
+                    font-size: 16px;
+                }
+                Rectangle { vertical-stretch: 1; }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Button { text: "Back"; clicked => { root.screen = "sale"; } }
+                    complete := Button {
+                        text: method == "card" ? "Card approved" : "Complete sale";
+                        primary: true;
+                        enabled: method == "card" || tendered >= total;
+                        clicked => {
+                            root.checkout(total, method);
+                            root.screen = "done";
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            visible: screen == "done";
+            width: 420px;
+            height: 300px;
+            background: #ffffff;
+            border-radius: 16px;
+            VerticalLayout {
+                padding: 24px;
+                spacing: 10px;
+                Text { text: "Payment complete"; font-size: 22px; color: #15803d; }
+                Text { text: "$" + fixed(total, 2) + " paid by " + method; color: #0f172a; font-size: 16px; }
+                Text {
+                    visible: method == "cash";
+                    text: "Give change: $" + fixed(change, 2);
+                    font-size: 28px;
+                    color: #0f172a;
+                }
+                Text { text: "\{items} items  ·  Receipt sent to printer"; color: #64748b; }
+                Rectangle { vertical-stretch: 1; }
+                new-sale := Button {
+                    text: "Start new sale";
+                    primary: true;
+                    height: 44px;
+                    clicked => {
+                        root.q-bananas = 0; root.q-apples = 0; root.q-avocados = 0; root.q-tomatoes = 0;
+                        root.q-sourdough = 0; root.q-croissant = 0; root.q-bagels = 0; root.q-baguette = 0;
+                        root.q-milk = 0; root.q-yogurt = 0; root.q-eggs = 0; root.q-cheddar = 0;
+                        root.q-coffee = 0; root.q-juice = 0; root.q-water = 0; root.q-olive-oil = 0;
+                        root.member = false;
+                        root.tendered = 0;
+                        root.scan-note = "Ready for the next customer";
+                        root.screen = "sale";
+                    }
+                }
+            }
+        }
+    }
+}

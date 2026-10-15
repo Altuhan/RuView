@@ -399,3 +399,16 @@ fn preferred_size_survives_viewport_changes() {
     app.render(&mut kite_core::RgbBuffer::new(300, 150));
     assert_eq!(app.preferred_size(), Size::new(300.0, 180.0));
 }
+
+#[test]
+fn fixed_formats_money() {
+    let app = run(r#"export component M {
+        in property <float> v: 3.5;
+        out property <string> a: "$" + fixed(v, 2);
+        out property <string> b: fixed(-0.001, 2);
+        out property <string> c: fixed(2, 0);
+    }"#);
+    assert_eq!(app.get_property("a").unwrap(), Value::from("$3.50"));
+    assert_eq!(app.get_property("b").unwrap(), Value::from("0.00"));
+    assert_eq!(app.get_property("c").unwrap(), Value::from("2"));
+}
