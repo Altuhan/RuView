@@ -25,7 +25,7 @@ pub use elements::ElementKind;
 pub use geometry::{Point, Rect, Size};
 pub use instance::{ComponentInstance, Error, Event, Key, NativeHandler, PointerButton};
 pub use ir::ComponentDef;
-pub use raster::{Canvas, Rgb565Buffer, RgbBuffer, Target};
+pub use raster::{Canvas, Rgb32Buffer, Rgb565Buffer, RgbBuffer, Target};
 pub use value::{EnumType, Type, Value};
 
 /// Implemented by components generated from `.ui` files.

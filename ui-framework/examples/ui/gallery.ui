@@ -1,0 +1,81 @@
+// A tour of Kite's built-in widgets.
+// Preview: kite preview examples/ui/gallery.ui
+
+component Card inherits Rectangle {
+    in property <string> title;
+    background: #ffffff;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: #e3e3e8;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+        Text { text: root.title; font-size: 16px; color: #111827; }
+        @children
+    }
+}
+
+export component Gallery inherits Window {
+    title: "Kite Gallery";
+    width: 560px;
+    height: 400px;
+
+    in-out property <string> name: "Ada";
+    in-out property <float> volume: 40;
+    in-out property <bool> notifications: true;
+    in-out property <int> clicks;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        Text {
+            text: "Hello, \{name}!";
+            font-size: 24px;
+            color: #1d4ed8;
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+
+            Card {
+                title: "Profile";
+                TextInput { text <=> root.name; placeholder-text: "Your name"; }
+                CheckBox { text: "Email notifications"; checked <=> root.notifications; }
+                Text {
+                    text: root.notifications ? "You will get emails." : "Emails are off.";
+                    color: #6b7280;
+                }
+            }
+
+            Card {
+                title: "Audio";
+                Text { text: "Volume: \{round(root.volume)}%"; }
+                Slider { value <=> root.volume; maximum: 100; }
+                Rectangle {
+                    height: 10px;
+                    border-radius: 5px;
+                    background: #e5e7eb;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * root.volume / 100;
+                        border-radius: 5px;
+                        background: root.volume > 80 ? #dc2626 : #16a34a;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            Text {
+                text: "Clicked \{root.clicks} times";
+                vertical-alignment: center;
+                color: #4b5563;
+            }
+            Button { text: "Reset"; clicked => { root.clicks = 0; } }
+            Button { text: "Click me"; primary: true; clicked => { root.clicks += 1; } }
+        }
+    }
+}

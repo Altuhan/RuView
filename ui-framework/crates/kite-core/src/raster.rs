@@ -85,6 +85,38 @@ impl Target for RgbBuffer {
     }
 }
 
+/// A borrowed `0x00RRGGBB` buffer (e.g. a softbuffer surface).
+pub struct Rgb32Buffer<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: &'a mut [u32],
+}
+
+impl Target for Rgb32Buffer<'_> {
+    fn width(&self) -> u32 {
+        self.width
+    }
+    fn height(&self) -> u32 {
+        self.height
+    }
+    #[inline]
+    fn blend(&mut self, x: u32, y: u32, color: Color, coverage: u8) {
+        let i = (y * self.width + x) as usize;
+        let dst = Color::from_rgb_u32(self.pixels[i]);
+        self.pixels[i] = dst.blend_under(color, coverage).to_argb_u32() & 0x00ff_ffff;
+    }
+    fn fill_span(&mut self, x0: u32, x1: u32, y: u32, color: Color) {
+        let row = (y * self.width) as usize;
+        if color.a == 255 {
+            self.pixels[row + x0 as usize..row + x1 as usize].fill(color.to_argb_u32() & 0x00ff_ffff);
+        } else {
+            for x in x0..x1 {
+                self.blend(x, y, color, 255);
+            }
+        }
+    }
+}
+
 /// A borrowed RGB565 framebuffer, the common format of small SPI displays.
 pub struct Rgb565Buffer<'a> {
     pub width: u32,
@@ -111,8 +143,11 @@ impl Target for Rgb565Buffer<'_> {
 /// (so a target can hold just a band of the full frame).
 pub struct Canvas<'a> {
     target: &'a mut dyn Target,
-    /// Global y coordinate of the target's first row.
+    /// Global y coordinate (in device pixels) of the target's first row.
     offset_y: f32,
+    /// Device pixels per logical pixel.
+    scale: f32,
+    /// Clip in device pixels.
     clip: Rect,
     clip_stack: Vec<Rect>,
 }
@@ -139,18 +174,31 @@ impl<'a> Canvas<'a> {
 
     /// The target represents rows `offset_y .. offset_y + target.height()` of the frame.
     pub fn with_offset(target: &'a mut dyn Target, offset_y: f32) -> Self {
-        let clip = Rect::new(0.0, offset_y, target.width() as f32, target.height() as f32);
-        Self { target, offset_y, clip, clip_stack: Vec::new() }
+        Self::with_transform(target, offset_y, 1.0)
     }
 
-    /// The part of the frame this canvas can draw on.
+    /// Like [`with_offset`](Self::with_offset), drawing logical coordinates at
+    /// `scale` device pixels each (HiDPI). `offset_y` is in device pixels.
+    pub fn with_transform(target: &'a mut dyn Target, offset_y: f32, scale: f32) -> Self {
+        let clip = Rect::new(0.0, offset_y, target.width() as f32, target.height() as f32);
+        Self { target, offset_y, scale: scale.max(0.01), clip, clip_stack: Vec::new() }
+    }
+
+    #[inline]
+    fn dev(&self, r: Rect) -> Rect {
+        let s = self.scale;
+        Rect::new(r.x * s, r.y * s, r.width * s, r.height * s)
+    }
+
+    /// The part of the frame this canvas can draw on, in logical coordinates.
     pub fn bounds(&self) -> Rect {
-        self.clip
+        let s = self.scale;
+        Rect::new(self.clip.x / s, self.clip.y / s, self.clip.width / s, self.clip.height / s)
     }
 
     pub fn push_clip(&mut self, r: Rect) {
         self.clip_stack.push(self.clip);
-        self.clip = self.clip.intersect(&r);
+        self.clip = self.clip.intersect(&self.dev(r));
     }
 
     pub fn pop_clip(&mut self) {
@@ -194,6 +242,7 @@ impl<'a> Canvas<'a> {
         if color.a == 0 || r.is_empty() {
             return;
         }
+        let (r, radius) = (self.dev(r), radius * self.scale);
         let Some((x0, x1, y0, y1)) = self.pixel_range(r) else { return };
         let radius = radius.clamp(0.0, r.width.min(r.height) / 2.0);
         let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
@@ -239,6 +288,7 @@ impl<'a> Canvas<'a> {
         if color.a == 0 || width <= 0.0 || r.is_empty() {
             return;
         }
+        let (r, radius, width) = (self.dev(r), radius * self.scale, width * self.scale);
         let Some((x0, x1, y0, y1)) = self.pixel_range(r) else { return };
         let radius = radius.clamp(0.0, r.width.min(r.height) / 2.0);
         let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
@@ -257,6 +307,8 @@ impl<'a> Canvas<'a> {
 
     /// An anti-aliased line with round caps.
     pub fn line(&mut self, a: Point, b: Point, width: f32, color: Color) {
+        let s = self.scale;
+        let (a, b, width) = (Point::new(a.x * s, a.y * s), Point::new(b.x * s, b.y * s), width * s);
         let hw = width / 2.0;
         let bounds = Rect::new(
             a.x.min(b.x) - hw - 1.0,
@@ -281,24 +333,43 @@ impl<'a> Canvas<'a> {
 
     /// Draw one line of text with its baseline at `baseline`; returns the advance.
     pub fn text(&mut self, x: f32, baseline: f32, text: &str, size: f32, color: Color) -> f32 {
+        let s = self.scale;
+        let logical_width = font::line_width(text, size);
+        let (x, baseline, size) = (x * s, baseline * s, size * s);
+        self.text_device(x, baseline, text, size, color);
+        logical_width
+    }
+
+    fn text_device(&mut self, x: f32, baseline: f32, text: &str, size: f32, color: Color) {
         let scale = size / font::BASE_SIZE;
         let samples = libm::ceilf(1.0 / scale).clamp(1.0, 4.0) as u32;
         let inv = 1.0 / samples as f32;
         let mut pen = x;
         let line_rect = Rect::new(x, baseline - font::ascent(size) - 2.0, 1e9, font::line_height(size) + 4.0);
         if self.clip.intersect(&line_rect).is_empty() {
-            return font::line_width(text, size);
+            return;
         }
         for ch in text.chars() {
             let g = font::glyph(ch);
             if g.width > 0 {
                 let ox = pen + g.bearing_x as f32 * scale;
                 let oy = baseline + g.bearing_y as f32 * scale;
-                let dest = Rect::new(ox, oy, g.width as f32 * scale, g.height as f32 * scale);
+                let pad = if samples == 1 { 1.0 } else { 0.0 };
+                let dest = Rect::new(ox - pad, oy - pad, g.width as f32 * scale + 2.0 * pad, g.height as f32 * scale + 2.0 * pad);
                 if let Some((x0, x1, y0, y1)) = self.pixel_range(dest) {
                     for y in y0..y1 {
                         let gy = y as f32 + self.offset_y;
                         for x in x0..x1 {
+                            if samples == 1 {
+                                // Upscaling: bilinear interpolation of the atlas.
+                                let u = (x as f32 + 0.5 - ox) / scale - 0.5;
+                                let v = (gy + 0.5 - oy) / scale - 0.5;
+                                let a = bilinear(&g, u, v);
+                                if a > 0.0 {
+                                    self.put(x, y, color, a);
+                                }
+                                continue;
+                            }
                             let mut acc = 0u32;
                             for sy in 0..samples {
                                 let v = ((gy + (sy as f32 + 0.5) * inv - oy) / scale) as i32;
@@ -322,8 +393,22 @@ impl<'a> Canvas<'a> {
             }
             pen += g.advance * scale;
         }
-        pen - x
     }
+}
+
+fn bilinear(g: &font::Glyph, u: f32, v: f32) -> f32 {
+    let (x0, y0) = (libm::floorf(u), libm::floorf(v));
+    let (fx, fy) = (u - x0, v - y0);
+    let at = |x: f32, y: f32| -> f32 {
+        if x < 0.0 || y < 0.0 || x >= g.width as f32 || y >= g.height as f32 {
+            0.0
+        } else {
+            g.bitmap[(y as u32 * g.width + x as u32) as usize] as f32 / 255.0
+        }
+    };
+    let top = at(x0, y0) * (1.0 - fx) + at(x0 + 1.0, y0) * fx;
+    let bottom = at(x0, y0 + 1.0) * (1.0 - fx) + at(x0 + 1.0, y0 + 1.0) * fx;
+    top * (1.0 - fy) + bottom * fy
 }
 
 #[cfg(test)]
@@ -375,6 +460,15 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn scaled_drawing_covers_device_pixels() {
+        let mut buf = RgbBuffer::new(20, 20);
+        Canvas::with_transform(&mut buf, 0.0, 2.0).fill_rect(Rect::new(1.0, 1.0, 4.0, 4.0), 0.0, Color::WHITE);
+        assert_eq!(buf.pixel(2, 2), Color::WHITE);
+        assert_eq!(buf.pixel(9, 9), Color::WHITE);
+        assert_eq!(buf.pixel(10, 10), Color::BLACK);
     }
 
     #[test]

@@ -1,0 +1,11 @@
+[package]
+name = "kite-build"
+description = "Compile Kite .ui files to Rust from build.rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+kite-compiler.workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "kite-example-counter"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+kite = { workspace = true, default-features = true }
+
+[dev-dependencies]
+kite = { workspace = true, features = ["headless"] }
+
+[build-dependencies]
+kite-build.workspace = true
