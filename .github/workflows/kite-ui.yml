@@ -36,6 +36,6 @@ jobs:
       - name: no_std (Cortex-M4F)
         run: cargo build -p kite-core -p kite-embedded --no-default-features --target thumbv7em-none-eabihf
       - name: WebAssembly
-        run: cargo build -p kite-example-web-counter --target wasm32-unknown-unknown --release
+        run: cargo build -p kite-example-web-counter -p kite-example-playground --target wasm32-unknown-unknown --release
       - name: Check example .ui files
         run: cargo run -q -p kite-cli --no-default-features -- check examples/ui/gallery.ui examples/counter/ui/counter.ui examples/embedded-thermostat/ui/thermostat.ui

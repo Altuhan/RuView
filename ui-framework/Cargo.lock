@@ -592,6 +592,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kite-example-playground"
+version = "0.0.0"
+dependencies = [
+ "kite-compiler",
+ "kite-core",
+ "kite-web",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "kite-example-thermostat"
 version = "0.0.0"
 dependencies = [

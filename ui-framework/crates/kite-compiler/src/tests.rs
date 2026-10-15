@@ -391,3 +391,11 @@ fn codegen_emits_typed_api() {
     assert!(code.contains("pub fn on_reset(&self"));
     assert!(code.contains("pub fn invoke_reset(&self)"));
 }
+
+#[test]
+fn preferred_size_survives_viewport_changes() {
+    let app = run("export component A inherits Window { width: 300px; height: 180px; }");
+    app.set_size(Size::new(300.0, 150.0));
+    app.render(&mut kite_core::RgbBuffer::new(300, 150));
+    assert_eq!(app.preferred_size(), Size::new(300.0, 180.0));
+}

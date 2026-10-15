@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/kite-core", "crates/kite-compiler", "crates/kite-headless", "crates/kite-cli", "crates/kite-winit", "crates/kite-build", "crates/kite", "examples/counter", "crates/kite-embedded", "examples/embedded-thermostat", "crates/kite-web", "examples/web-counter"]
+members = ["crates/kite-core", "crates/kite-compiler", "crates/kite-headless", "crates/kite-cli", "crates/kite-winit", "crates/kite-build", "crates/kite", "examples/counter", "crates/kite-embedded", "examples/embedded-thermostat", "crates/kite-web", "examples/web-counter", "examples/playground"]
 
 [workspace.package]
 version = "0.1.0"

@@ -35,7 +35,31 @@ struct State {
 /// Keeps the event listeners alive. Dropping it detaches nothing (listeners
 /// live as long as the page), so it is usually just ignored.
 pub struct Mounted {
-    _state: Rc<RefCell<State>>,
+    state: Rc<RefCell<State>>,
+}
+
+impl Mounted {
+    /// Swaps in another component (e.g. after recompiling), keeping the
+    /// canvas and its listeners. The canvas is resized to the new component's
+    /// preferred size.
+    pub fn replace(&self, instance: &ComponentInstance) -> Result<(), JsValue> {
+        {
+            let mut s = self.state.borrow_mut();
+            s.instance = instance.clone();
+            let pref = instance.preferred_size();
+            let style = s.canvas.style();
+            style.set_property("width", &format!("{}px", pref.width))?;
+            style.set_property("height", &format!("{}px", pref.height))?;
+        }
+        resize(&self.state);
+        render(&self.state);
+        Ok(())
+    }
+
+    /// The component currently shown.
+    pub fn instance(&self) -> ComponentInstance {
+        self.state.borrow().instance.clone()
+    }
 }
 
 /// Mounts `instance` into the canvas with id `canvas_id`.
@@ -140,11 +164,11 @@ pub fn mount(instance: &ComponentInstance, canvas: HtmlCanvasElement) -> Result<
     let resize_state = state.clone();
     let on_resize = Closure::<dyn FnMut()>::new(move || {
         resize(&resize_state);
-        schedule(&resize_state);
+        render(&resize_state);
     });
     window.add_event_listener_with_callback("resize", on_resize.as_ref().unchecked_ref())?;
     on_resize.forget();
-    Ok(Mounted { _state: state })
+    Ok(Mounted { state })
 }
 
 fn listen<E: JsCast + 'static>(
@@ -177,9 +201,15 @@ fn resize(state: &Rc<RefCell<State>>) {
     s.scale = scale;
     s.instance.set_size(Size::new(w, h));
     let (pw, ph) = ((w * scale).round() as u32, (h * scale).round() as u32);
-    s.canvas.set_width(pw);
-    s.canvas.set_height(ph);
-    s.buffer.resize(pw, ph);
+    // Assigning canvas.width clears the canvas even when unchanged, so only
+    // touch it on real changes (callers repaint afterwards).
+    if s.canvas.width() != pw || s.canvas.height() != ph {
+        s.canvas.set_width(pw);
+        s.canvas.set_height(ph);
+    }
+    if s.buffer.width != pw || s.buffer.height != ph {
+        s.buffer.resize(pw, ph);
+    }
 }
 
 /// Requests an animation frame if the UI needs repainting.

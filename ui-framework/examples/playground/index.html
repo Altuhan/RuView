@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>
+<title>Kite Playground</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a workbench. Source on the left, the running UI and its live state on the right, the generated Rust underneath. */
+:root {
+  --bg: #f4f5f8;
+  --panel: #ffffff;
+  --ink: #161a23;
+  --muted: #5d6474;
+  --line: #dfe2ea;
+  --accent: #2456d6;
+  --accent-soft: #e6ecfb;
+  --code-bg: #fbfbfd;
+  --stage: #e9ebf1;
+  --err: #b42318;
+  --err-bg: #fdecea;
+  --ok: #18794e;
+  --warn: #9a5b00;
+  --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141a; --panel: #1a1d25; --ink: #e8eaf0; --muted: #a0a6b4; --line: #2c303b;
+    --accent: #7ea2ff; --accent-soft: #232c45; --code-bg: #15171e; --stage: #0d0f14;
+    --err: #ff8a80; --err-bg: #3a1d1c; --ok: #5fd39a; --warn: #f0b45a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12141a; --panel: #1a1d25; --ink: #e8eaf0; --muted: #a0a6b4; --line: #2c303b;
+  --accent: #7ea2ff; --accent-soft: #232c45; --code-bg: #15171e; --stage: #0d0f14;
+  --err: #ff8a80; --err-bg: #3a1d1c; --ok: #5fd39a; --warn: #f0b45a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 2rem; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.lede { margin: 0; color: var(--muted); max-width: 70ch; }
+.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pipeline b { font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 7px; }
+h2 { font-family: var(--display); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: 500 14px var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tabs button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.spacer { flex: 1; }
+.typo { color: var(--err); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.status { font: 500 12px var(--mono); }
+.status.ok { color: var(--ok); } .status.err { color: var(--err); } .status.warn { color: var(--warn); }
+textarea {
+  display: block; width: 100%; min-height: 520px; resize: vertical; border: 0; border-radius: 0 0 10px 10px;
+  background: var(--code-bg); color: var(--ink); font: 13.5px/1.6 var(--mono); padding: 14px; tab-size: 4; white-space: pre; overflow: auto;
+}
+.diag { margin: 0; padding: 12px 14px; background: var(--err-bg); color: var(--err); font: 12.5px/1.5 var(--mono); white-space: pre; overflow-x: auto; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; }
+.right { display: grid; gap: 20px; min-width: 0; }
+.stage { background: var(--stage); border-radius: 0 0 10px 10px; padding: 24px; display: grid; place-items: center; overflow-x: auto; min-height: 220px; }
+canvas { display: block; border-radius: 8px; box-shadow: 0 6px 24px rgba(10, 20, 50, 0.18); outline: none; }
+canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.hint { margin: 0; padding: 8px 14px 12px; color: var(--muted); font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font: 500 11px var(--display); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.name { font-family: var(--mono); font-size: 13px; }
+td.type { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.chip { display: inline-block; font: 500 11px var(--mono); padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.chip.w { border-color: var(--accent); color: var(--accent); }
+td.val { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+td.val input { width: 100%; min-width: 0; font: 13px var(--mono); color: var(--ink); background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; }
+td.val input.bad { border-color: var(--err); }
+.flash { animation: flash 0.6s ease-out; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+.empty { padding: 10px 14px; color: var(--muted); font-size: 13px; margin: 0; }
+ol.log { list-style: none; margin: 0; padding: 6px 0; max-height: 170px; overflow-y: auto; font: 13px var(--mono); }
+ol.log li { padding: 3px 14px; display: flex; gap: 12px; }
+ol.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+pre.rust { margin: 0; padding: 14px; background: var(--code-bg); font: 13px/1.6 var(--mono); overflow-x: auto; border-radius: 0 0 10px 10px; }
+.rust .kw { color: var(--accent); }
+.rust .ty { color: var(--ok); }
+.panel-head p { margin: 0; color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span>Kite</span> Playground</h1>
+    <p class="lede">Edit the <code>.ui</code> code on the left. The Kite compiler and runtime run in this page as WebAssembly, so every keystroke recompiles and the preview updates in place. Click the preview to use it.</p>
+    <div class="pipeline" aria-label="How it works">
+      <b>.ui source</b> → <b>parse + type-check</b> → <b>component IR</b> → <b>reactive runtime</b> → <b>software renderer</b> → <b>&lt;canvas&gt;</b>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="tabs" role="group" aria-label="Examples">
+      <button id="ex-counter" data-ex="counter">Counter</button>
+      <button id="ex-converter" data-ex="converter">Converter</button>
+      <button id="ex-signup" data-ex="signup">Sign-up form</button>
+      <button id="ex-components" data-ex="components">Components</button>
+    </div>
+    <span class="spacer"></span>
+    <button id="typo" class="typo" title="Misspell a property to see the compiler's error message">Introduce a typo</button>
+  </div>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="src-h">
+      <div class="panel-head"><h2 id="src-h">app.ui</h2><span id="status" class="status">loading…</span></div>
+      <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="UI source code"></textarea>
+      <pre id="diag" class="diag" hidden></pre>
+    </section>
+
+    <div class="right">
+      <section class="panel" aria-labelledby="prev-h">
+        <div class="panel-head"><h2 id="prev-h">Running app</h2><p>Click, type, Tab between controls</p></div>
+        <div class="stage"><canvas id="preview" aria-label="Live preview of the component"></canvas></div>
+      </section>
+
+      <section class="panel" aria-labelledby="state-h">
+        <div class="panel-head"><h2 id="state-h">Public properties</h2><p>What Rust can read and write</p></div>
+        <table>
+          <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Access</th><th scope="col">Value</th></tr></thead>
+          <tbody id="props"></tbody>
+        </table>
+        <p class="hint">Editable values call <code>set_property</code>, like a Rust app would. Bindings update the UI immediately.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="log-h">
+        <div class="panel-head"><h2 id="log-h">Callbacks</h2><p>Handled by Rust</p></div>
+        <ol id="log" class="log" aria-live="polite"></ol>
+        <p id="log-empty" class="empty">No callbacks yet. Use the app to trigger one.</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" aria-labelledby="rust-h">
+    <div class="panel-head"><h2 id="rust-h">The Rust side</h2><p>The typed API <code>kite-build</code> generates for this component</p></div>
+    <pre id="rust" class="rust"></pre>
+  </section>
+</div>
+
+<script type="module">
+import init, * as kite from "./pkg/kite_example_playground.js";
+
+const EXAMPLES = {
+  counter: `// A counter. The Rust side listens to \`changed\`.
+export component Counter inherits Window {
+    width: 300px;
+    height: 180px;
+
+    in-out property <int> counter: 0;
+    callback changed(int);
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 12px;
+        alignment: center;
+
+        Text {
+            text: counter;
+            font-size: 44px;
+            horizontal-alignment: center;
+            color: counter < 0 ? #dc2626 : #111827;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            Button {
+                text: "-1";
+                clicked => { counter -= 1; root.changed(counter); }
+            }
+            Button {
+                text: "+1";
+                primary: true;
+                clicked => { counter += 1; root.changed(counter); }
+            }
+        }
+    }
+}
+`,
+  converter: `// Bindings recompute automatically when their inputs change.
+export component Converter inherits Window {
+    width: 320px;
+    height: 200px;
+
+    in-out property <float> celsius: 21;
+    out property <float> fahrenheit: celsius * 9 / 5 + 32;
+    out property <string> feel:
+        celsius < 10 ? "Cold" : celsius < 25 ? "Comfortable" : "Hot";
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 12px;
+
+        Text {
+            text: "\\{round(celsius)} °C = \\{round(fahrenheit)} °F";
+            font-size: 22px;
+        }
+        // Two-way binding: dragging writes \`celsius\`.
+        Slider { value <=> root.celsius; minimum: -20; maximum: 45; }
+        Rectangle {
+            height: 36px;
+            border-radius: 8px;
+            background: celsius < 10 ? #dbeafe : celsius < 25 ? #dcfce7 : #fee2e2;
+            Text { text: feel; color: #1f2937; }
+        }
+    }
+}
+`,
+  signup: `// Text input, password masking, and a button enabled by a binding.
+export component SignUp inherits Window {
+    width: 340px;
+    height: 250px;
+
+    in-out property <string> email;
+    in-out property <string> password;
+    in-out property <bool> terms;
+    out property <bool> valid: email != "" && password != "" && terms;
+    callback submit(string);
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 10px;
+        alignment: start;
+
+        Text { text: "Create account"; font-size: 20px; }
+        TextInput { text <=> root.email; placeholder-text: "Email"; }
+        TextInput { text <=> root.password; placeholder-text: "Password"; password: true; }
+        CheckBox { text: "I accept the terms"; checked <=> root.terms; }
+        Button {
+            text: valid ? "Sign up" : "Fill in all fields";
+            primary: true;
+            enabled: valid;
+            clicked => { root.submit(email); }
+        }
+    }
+}
+`,
+  components: `// Reusable components with properties and an @children slot.
+component Stat inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <color> tint: #2563eb;
+    background: #ffffff;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: #e5e7eb;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+        Text { text: root.label; color: #6b7280; font-size: 12px; }
+        Text { text: root.value; color: root.tint; font-size: 26px; }
+        @children
+    }
+}
+
+export component Dashboard inherits Window {
+    width: 400px;
+    height: 180px;
+
+    in-out property <int> people: 2;
+    in-out property <bool> away;
+
+    HorizontalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        Stat {
+            label: "People in room";
+            value: people;
+            Button {
+                text: "Someone left";
+                enabled: people > 0;
+                clicked => { people -= 1; }
+            }
+        }
+        Stat {
+            label: "Mode";
+            value: away ? "Away" : "Home";
+            tint: away ? #b45309 : #15803d;
+            CheckBox { text: "Away mode"; checked <=> root.away; }
+        }
+    }
+}
+`,
+};
+
+const $ = (id) => document.getElementById(id);
+const src = $("src"), status = $("status"), diag = $("diag"), props = $("props");
+const log = $("log"), logEmpty = $("log-empty"), rust = $("rust");
+let timer = 0, current = "";
+
+function setStatus(text, kind) { status.textContent = text; status.className = "status " + kind; }
+
+function highlightRust(code) {
+  const esc = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc
+    .replace(/\b(pub|fn|struct|impl|mut|self|Self)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(i32|f32|bool|String|Color|Value)\b/g, '<span class="ty">$1</span>');
+}
+
+function compile() {
+  const text = src.value;
+  const t0 = performance.now();
+  const out = kite.compile(text, "preview");
+  const ms = (performance.now() - t0).toFixed(1);
+  const failed = out !== "" && !out.startsWith("(compiled with warnings)");
+  if (failed) {
+    diag.textContent = out;
+    diag.hidden = false;
+    setStatus("error · showing last good version", "err");
+    return;
+  }
+  diag.hidden = out === "";
+  diag.textContent = out;
+  setStatus(out === "" ? `compiled in ${ms} ms` : `compiled with warnings in ${ms} ms`, out === "" ? "ok" : "warn");
+  current = text;
+  rust.innerHTML = highlightRust(kite.rust_api(text));
+  renderProps(true);
+}
+
+function renderProps(rebuild) {
+  let list;
+  try { list = JSON.parse(kite.state_json()); } catch { return; }
+  if (rebuild || props.children.length !== list.length) {
+    props.innerHTML = "";
+    for (const p of list) {
+      const tr = document.createElement("tr");
+      tr.dataset.name = p.name;
+      const writable = p.access !== "out";
+      tr.innerHTML = `<td class="name"></td><td class="type"></td><td><span class="chip${writable ? " w" : ""}"></span></td><td class="val"></td>`;
+      tr.children[0].textContent = p.name;
+      tr.children[1].textContent = p.type;
+      tr.children[2].firstChild.textContent = p.access;
+      const cell = tr.children[3];
+      if (writable) {
+        const input = document.createElement("input");
+        input.id = "prop-" + p.name;
+        input.setAttribute("aria-label", "Set " + p.name);
+        input.addEventListener("change", () => {
+          const err = kite.set_property(p.name, input.value);
+          input.classList.toggle("bad", err !== "");
+          input.title = err;
+        });
+        cell.appendChild(input);
+      }
+      props.appendChild(tr);
+    }
+    if (list.length === 0) props.innerHTML = `<tr><td colspan="4" class="empty">This component has no public properties.</td></tr>`;
+  }
+  for (const p of list) {
+    const tr = props.querySelector(`tr[data-name="${CSS.escape(p.name)}"]`);
+    if (!tr) continue;
+    const cell = tr.children[3];
+    const input = cell.querySelector("input");
+    const shown = input ? input.value : cell.textContent;
+    if (shown === p.value) continue;
+    if (input) {
+      if (document.activeElement === input) continue;
+      input.value = p.value;
+      input.classList.remove("bad");
+    } else {
+      cell.textContent = p.value;
+    }
+    tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash");
+  }
+}
+
+function pollLog() {
+  let calls;
+  try { calls = JSON.parse(kite.take_log()); } catch { return; }
+  for (const c of calls) {
+    const li = document.createElement("li");
+    const time = document.createElement("time");
+    time.textContent = new Date().toLocaleTimeString([], { hour12: false });
+    const code = document.createElement("span");
+    code.textContent = c;
+    li.append(time, code);
+    log.prepend(li);
+  }
+  while (log.children.length > 40) log.lastChild.remove();
+  logEmpty.hidden = log.children.length > 0;
+}
+
+function load(name) {
+  src.value = EXAMPLES[name];
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-pressed", String(b.dataset.ex === name));
+  log.innerHTML = "";
+  logEmpty.hidden = false;
+  compile();
+}
+
+src.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(compile, 200); });
+src.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.shiftKey) {
+    e.preventDefault();
+    const { selectionStart: s, selectionEnd: t } = src;
+    src.setRangeText("    ", s, t, "end");
+    src.dispatchEvent(new Event("input"));
+  }
+});
+for (const b of document.querySelectorAll(".tabs button")) b.addEventListener("click", () => load(b.dataset.ex));
+$("typo").addEventListener("click", () => {
+  const swaps = [["text:", "txt:"], ["spacing:", "spaceing:"], ["primary:", "primery:"]];
+  for (const [a, b] of swaps) {
+    if (src.value.includes(a)) { src.value = src.value.replace(a, b); compile(); src.focus(); return; }
+  }
+});
+
+try {
+  await init();
+  load("counter");
+  setInterval(() => { renderProps(false); pollLog(); }, 150);
+} catch (e) {
+  setStatus("could not start", "err");
+  diag.hidden = false;
+  diag.textContent = "The WebAssembly module failed to load: " + e;
+}
+</script>
+</body></html>
