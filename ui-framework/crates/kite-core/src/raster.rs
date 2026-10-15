@@ -35,7 +35,11 @@ pub struct RgbBuffer {
 
 impl RgbBuffer {
     pub fn new(width: u32, height: u32) -> Self {
-        Self { width, height, pixels: vec![0; (width * height) as usize] }
+        Self {
+            width,
+            height,
+            pixels: vec![0; (width * height) as usize],
+        }
     }
 
     pub fn pixel(&self, x: u32, y: u32) -> Color {
@@ -108,7 +112,8 @@ impl Target for Rgb32Buffer<'_> {
     fn fill_span(&mut self, x0: u32, x1: u32, y: u32, color: Color) {
         let row = (y * self.width) as usize;
         if color.a == 255 {
-            self.pixels[row + x0 as usize..row + x1 as usize].fill(color.to_argb_u32() & 0x00ff_ffff);
+            self.pixels[row + x0 as usize..row + x1 as usize]
+                .fill(color.to_argb_u32() & 0x00ff_ffff);
         } else {
             for x in x0..x1 {
                 self.blend(x, y, color, 255);
@@ -181,7 +186,13 @@ impl<'a> Canvas<'a> {
     /// `scale` device pixels each (HiDPI). `offset_y` is in device pixels.
     pub fn with_transform(target: &'a mut dyn Target, offset_y: f32, scale: f32) -> Self {
         let clip = Rect::new(0.0, offset_y, target.width() as f32, target.height() as f32);
-        Self { target, offset_y, scale: scale.max(0.01), clip, clip_stack: Vec::new() }
+        Self {
+            target,
+            offset_y,
+            scale: scale.max(0.01),
+            clip,
+            clip_stack: Vec::new(),
+        }
     }
 
     #[inline]
@@ -193,7 +204,12 @@ impl<'a> Canvas<'a> {
     /// The part of the frame this canvas can draw on, in logical coordinates.
     pub fn bounds(&self) -> Rect {
         let s = self.scale;
-        Rect::new(self.clip.x / s, self.clip.y / s, self.clip.width / s, self.clip.height / s)
+        Rect::new(
+            self.clip.x / s,
+            self.clip.y / s,
+            self.clip.width / s,
+            self.clip.height / s,
+        )
     }
 
     pub fn push_clip(&mut self, r: Rect) {
@@ -216,7 +232,8 @@ impl<'a> Canvas<'a> {
         let x0 = libm::floorf(c.x).max(0.0) as u32;
         let x1 = (libm::ceilf(c.right()) as u32).min(self.target.width());
         let y0 = libm::floorf(c.y - self.offset_y).max(0.0) as u32;
-        let y1 = (libm::ceilf(c.bottom() - self.offset_y).max(0.0) as u32).min(self.target.height());
+        let y1 =
+            (libm::ceilf(c.bottom() - self.offset_y).max(0.0) as u32).min(self.target.height());
         (x0 < x1 && y0 < y1).then_some((x0, x1, y0, y1))
     }
 
@@ -243,7 +260,9 @@ impl<'a> Canvas<'a> {
             return;
         }
         let (r, radius) = (self.dev(r), radius * self.scale);
-        let Some((x0, x1, y0, y1)) = self.pixel_range(r) else { return };
+        let Some((x0, x1, y0, y1)) = self.pixel_range(r) else {
+            return;
+        };
         let radius = radius.clamp(0.0, r.width.min(r.height) / 2.0);
         let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
         let (hx, hy) = (r.width / 2.0, r.height / 2.0);
@@ -289,7 +308,9 @@ impl<'a> Canvas<'a> {
             return;
         }
         let (r, radius, width) = (self.dev(r), radius * self.scale, width * self.scale);
-        let Some((x0, x1, y0, y1)) = self.pixel_range(r) else { return };
+        let Some((x0, x1, y0, y1)) = self.pixel_range(r) else {
+            return;
+        };
         let radius = radius.clamp(0.0, r.width.min(r.height) / 2.0);
         let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
         let (hx, hy) = (r.width / 2.0, r.height / 2.0);
@@ -308,7 +329,11 @@ impl<'a> Canvas<'a> {
     /// An anti-aliased line with round caps.
     pub fn line(&mut self, a: Point, b: Point, width: f32, color: Color) {
         let s = self.scale;
-        let (a, b, width) = (Point::new(a.x * s, a.y * s), Point::new(b.x * s, b.y * s), width * s);
+        let (a, b, width) = (
+            Point::new(a.x * s, a.y * s),
+            Point::new(b.x * s, b.y * s),
+            width * s,
+        );
         let hw = width / 2.0;
         let bounds = Rect::new(
             a.x.min(b.x) - hw - 1.0,
@@ -316,7 +341,9 @@ impl<'a> Canvas<'a> {
             libm::fabsf(a.x - b.x) + width + 2.0,
             libm::fabsf(a.y - b.y) + width + 2.0,
         );
-        let Some((x0, x1, y0, y1)) = self.pixel_range(bounds) else { return };
+        let Some((x0, x1, y0, y1)) = self.pixel_range(bounds) else {
+            return;
+        };
         let (dx, dy) = (b.x - a.x, b.y - a.y);
         let len2 = (dx * dx + dy * dy).max(1e-6);
         for y in y0..y1 {
@@ -345,7 +372,12 @@ impl<'a> Canvas<'a> {
         let samples = libm::ceilf(1.0 / scale).clamp(1.0, 4.0) as u32;
         let inv = 1.0 / samples as f32;
         let mut pen = x;
-        let line_rect = Rect::new(x, baseline - font::ascent(size) - 2.0, 1e9, font::line_height(size) + 4.0);
+        let line_rect = Rect::new(
+            x,
+            baseline - font::ascent(size) - 2.0,
+            1e9,
+            font::line_height(size) + 4.0,
+        );
         if self.clip.intersect(&line_rect).is_empty() {
             return;
         }
@@ -355,7 +387,12 @@ impl<'a> Canvas<'a> {
                 let ox = pen + g.bearing_x as f32 * scale;
                 let oy = baseline + g.bearing_y as f32 * scale;
                 let pad = if samples == 1 { 1.0 } else { 0.0 };
-                let dest = Rect::new(ox - pad, oy - pad, g.width as f32 * scale + 2.0 * pad, g.height as f32 * scale + 2.0 * pad);
+                let dest = Rect::new(
+                    ox - pad,
+                    oy - pad,
+                    g.width as f32 * scale + 2.0 * pad,
+                    g.height as f32 * scale + 2.0 * pad,
+                );
                 if let Some((x0, x1, y0, y1)) = self.pixel_range(dest) {
                     for y in y0..y1 {
                         let gy = y as f32 + self.offset_y;
@@ -364,7 +401,9 @@ impl<'a> Canvas<'a> {
                                 // Upscaling: bilinear interpolation of the atlas.
                                 let u = (x as f32 + 0.5 - ox) / scale - 0.5;
                                 let v = (gy + 0.5 - oy) / scale - 0.5;
-                                let a = bilinear(&g, u, v);
+                                // Re-sharpen: bilinear alpha ramps over `scale` device pixels;
+                                // remap so edges stay ~1 device pixel wide.
+                                let a = ((bilinear(&g, u, v) - 0.5) * scale + 0.5).clamp(0.0, 1.0);
                                 if a > 0.0 {
                                     self.put(x, y, color, a);
                                 }
@@ -377,9 +416,11 @@ impl<'a> Canvas<'a> {
                                     continue;
                                 }
                                 for sx in 0..samples {
-                                    let u = ((x as f32 + (sx as f32 + 0.5) * inv - ox) / scale) as i32;
+                                    let u =
+                                        ((x as f32 + (sx as f32 + 0.5) * inv - ox) / scale) as i32;
                                     if u >= 0 && u < g.width as i32 {
-                                        acc += g.bitmap[(v as u32 * g.width + u as u32) as usize] as u32;
+                                        acc += g.bitmap[(v as u32 * g.width + u as u32) as usize]
+                                            as u32;
                                     }
                                 }
                             }
@@ -436,11 +477,16 @@ mod tests {
         Canvas::new(&mut buf).fill_rect(Rect::new(0.0, 0.0, 20.0, 20.0), 8.0, Color::WHITE);
         assert_eq!(buf.pixel(0, 0), Color::BLACK);
         assert_eq!(buf.pixel(10, 10), Color::WHITE);
-        let partial = (0..8).flat_map(|y| (0..8).map(move |x| (x, y))).filter(|(x, y)| {
-            let p = buf.pixel(*x, *y);
-            p.r > 0 && p.r < 255
-        });
-        assert!(partial.count() >= 4, "corner should have anti-aliased pixels");
+        let partial = (0..8)
+            .flat_map(|y| (0..8).map(move |x| (x, y)))
+            .filter(|(x, y)| {
+                let p = buf.pixel(*x, *y);
+                p.r > 0 && p.r < 255
+            });
+        assert!(
+            partial.count() >= 4,
+            "corner should have anti-aliased pixels"
+        );
     }
 
     #[test]
@@ -465,7 +511,11 @@ mod tests {
     #[test]
     fn scaled_drawing_covers_device_pixels() {
         let mut buf = RgbBuffer::new(20, 20);
-        Canvas::with_transform(&mut buf, 0.0, 2.0).fill_rect(Rect::new(1.0, 1.0, 4.0, 4.0), 0.0, Color::WHITE);
+        Canvas::with_transform(&mut buf, 0.0, 2.0).fill_rect(
+            Rect::new(1.0, 1.0, 4.0, 4.0),
+            0.0,
+            Color::WHITE,
+        );
         assert_eq!(buf.pixel(2, 2), Color::WHITE);
         assert_eq!(buf.pixel(9, 9), Color::WHITE);
         assert_eq!(buf.pixel(10, 10), Color::BLACK);

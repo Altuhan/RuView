@@ -59,6 +59,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -90,6 +96,12 @@ name = "bytemuck"
 version = "1.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95832e849adfb21180ccb6826a99da14e5d266ae5c2e668e1602cf234f153797"
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -278,6 +290,16 @@ name = "dtor"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edf234dd1594d6dd434a8fb8cada51ddbbc593e40e4a01556a0b31c62da2775b"
+
+[[package]]
+name = "embedded-graphics-core"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95743bef3ff70fcba3930246c4e6872882bbea0dcc6da2ca860112e0cd4bd09f"
+dependencies = [
+ "az",
+ "byteorder",
+]
 
 [[package]]
 name = "equivalent"
@@ -554,11 +576,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "kite-embedded"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics-core",
+ "kite-core",
+]
+
+[[package]]
 name = "kite-example-counter"
 version = "0.0.0"
 dependencies = [
  "kite",
  "kite-build",
+]
+
+[[package]]
+name = "kite-example-thermostat"
+version = "0.0.0"
+dependencies = [
+ "embedded-graphics-core",
+ "kite-build",
+ "kite-core",
+ "kite-embedded",
+]
+
+[[package]]
+name = "kite-example-web-counter"
+version = "0.0.0"
+dependencies = [
+ "kite",
+ "kite-build",
+ "kite-web",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -568,6 +618,15 @@ dependencies = [
  "kite-compiler",
  "kite-core",
  "png",
+]
+
+[[package]]
+name = "kite-web"
+version = "0.1.0"
+dependencies = [
+ "kite-core",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

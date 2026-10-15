@@ -2,7 +2,9 @@ use kite_core::Color;
 use kite_headless::{render, Harness};
 
 fn compile(src: &str) -> kite_core::ComponentInstance {
-    kite_compiler::compile_source("t.ui", src).unwrap_or_else(|d| panic!("{d}")).instantiate()
+    kite_compiler::compile_source("t.ui", src)
+        .unwrap_or_else(|d| panic!("{d}"))
+        .instantiate()
 }
 
 #[test]

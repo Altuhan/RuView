@@ -44,7 +44,8 @@ impl Image {
             enc.set_color(png::ColorType::Rgba);
             enc.set_depth(png::BitDepth::Eight);
             let mut w = enc.write_header().map_err(io::Error::other)?;
-            w.write_image_data(&self.buffer.to_rgba8()).map_err(io::Error::other)?;
+            w.write_image_data(&self.buffer.to_rgba8())
+                .map_err(io::Error::other)?;
         }
         Ok(out)
     }
@@ -55,7 +56,8 @@ impl Image {
         enc.set_color(png::ColorType::Rgba);
         enc.set_depth(png::BitDepth::Eight);
         let mut w = enc.write_header().map_err(io::Error::other)?;
-        w.write_image_data(&self.buffer.to_rgba8()).map_err(io::Error::other)
+        w.write_image_data(&self.buffer.to_rgba8())
+            .map_err(io::Error::other)
     }
 }
 
@@ -82,7 +84,10 @@ pub struct Harness {
 impl Harness {
     pub fn new(instance: ComponentInstance, width: f32, height: f32) -> Self {
         instance.set_size(Size::new(width, height));
-        Self { instance, scale: 1.0 }
+        Self {
+            instance,
+            scale: 1.0,
+        }
     }
 
     /// Uses the component's preferred size.
@@ -100,9 +105,16 @@ impl Harness {
     }
 
     pub fn click_at(&mut self, position: Point) {
-        self.instance.dispatch_event(Event::PointerMoved { position });
-        self.instance.dispatch_event(Event::PointerPressed { position, button: PointerButton::Left });
-        self.instance.dispatch_event(Event::PointerReleased { position, button: PointerButton::Left });
+        self.instance
+            .dispatch_event(Event::PointerMoved { position });
+        self.instance.dispatch_event(Event::PointerPressed {
+            position,
+            button: PointerButton::Left,
+        });
+        self.instance.dispatch_event(Event::PointerReleased {
+            position,
+            button: PointerButton::Left,
+        });
     }
 
     /// Clicks the center of the element with `id`.
@@ -113,7 +125,8 @@ impl Harness {
 
     pub fn hover(&mut self, id: &str) {
         let position = self.center(id);
-        self.instance.dispatch_event(Event::PointerMoved { position });
+        self.instance
+            .dispatch_event(Event::PointerMoved { position });
     }
 
     /// Types text into the focused element.

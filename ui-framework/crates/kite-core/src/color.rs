@@ -79,7 +79,12 @@ impl Color {
     pub fn mix(self, other: Color, t: f32) -> Self {
         let t = t.clamp(0.0, 1.0);
         let l = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t + 0.5) as u8;
-        Self::rgba(l(self.r, other.r), l(self.g, other.g), l(self.b, other.b), l(self.a, other.a))
+        Self::rgba(
+            l(self.r, other.r),
+            l(self.g, other.g),
+            l(self.b, other.b),
+            l(self.a, other.a),
+        )
     }
 
     /// Source-over blend of `src` with extra coverage `cov` (0..=255) onto an opaque `self`.
@@ -105,7 +110,11 @@ impl Color {
         let r = ((v >> 11) & 0x1f) as u8;
         let g = ((v >> 5) & 0x3f) as u8;
         let b = (v & 0x1f) as u8;
-        Self::rgb((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
+        Self::rgb(
+            (r << 3) | (r >> 2),
+            (g << 2) | (g >> 4),
+            (b << 3) | (b >> 2),
+        )
     }
 }
 
@@ -116,8 +125,14 @@ mod tests {
     #[test]
     fn parses_hex_forms() {
         assert_eq!(Color::from_hex("#fff"), Some(Color::WHITE));
-        assert_eq!(Color::from_hex("#11223344"), Some(Color::rgba(0x11, 0x22, 0x33, 0x44)));
-        assert_eq!(Color::from_hex("#123456"), Some(Color::rgb(0x12, 0x34, 0x56)));
+        assert_eq!(
+            Color::from_hex("#11223344"),
+            Some(Color::rgba(0x11, 0x22, 0x33, 0x44))
+        );
+        assert_eq!(
+            Color::from_hex("#123456"),
+            Some(Color::rgb(0x12, 0x34, 0x56))
+        );
         assert_eq!(Color::from_hex("#12345"), None);
         assert_eq!(Color::from_hex("#zzz"), None);
     }

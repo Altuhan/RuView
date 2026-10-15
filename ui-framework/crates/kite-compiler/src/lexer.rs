@@ -30,8 +30,8 @@ pub struct Token {
 }
 
 const PUNCTS: [&str; 33] = [
-    "<=>", ":=", "=>", "->", "<=", ">=", "==", "!=", "+=", "-=", "*=", "/=", "&&", "||", "{", "}", "(", ")",
-    "[", "]", ";", ":", ",", ".", "<", ">", "=", "+", "-", "*", "/", "%", "!",
+    "<=>", ":=", "=>", "->", "<=", ">=", "==", "!=", "+=", "-=", "*=", "/=", "&&", "||", "{", "}",
+    "(", ")", "[", "]", ";", ":", ",", ".", "<", ">", "=", "+", "-", "*", "/", "%", "!",
 ];
 const PUNCTS_EXTRA: [&str; 2] = ["?", "@"];
 
@@ -93,12 +93,18 @@ pub fn lex(src: &str, file: u32, base: usize, diags: &mut Vec<Diagnostic>) -> Ve
                 i += 1;
             }
             let s: String = bytes[start..i].iter().collect();
-            out.push(Token { tok: Tok::Ident(s), span: span(start, i) });
+            out.push(Token {
+                tok: Tok::Ident(s),
+                span: span(start, i),
+            });
             continue;
         }
         if c.is_ascii_digit() || (c == '.' && i + 1 < n && bytes[i + 1].is_ascii_digit()) {
             let mut dot = false;
-            while i < n && (bytes[i].is_ascii_digit() || (bytes[i] == '.' && !dot && i + 1 < n && bytes[i + 1].is_ascii_digit())) {
+            while i < n
+                && (bytes[i].is_ascii_digit()
+                    || (bytes[i] == '.' && !dot && i + 1 < n && bytes[i + 1].is_ascii_digit()))
+            {
                 if bytes[i] == '.' {
                     dot = true;
                 }
@@ -116,7 +122,10 @@ pub fn lex(src: &str, file: u32, base: usize, diags: &mut Vec<Diagnostic>) -> Ve
             let unit: String = bytes[unit_start..i].iter().collect();
             let value = text.parse::<f64>().unwrap_or(0.0);
             let unit = (!unit.is_empty()).then_some(unit);
-            out.push(Token { tok: Tok::Number(value, dot, unit), span: span(start, i) });
+            out.push(Token {
+                tok: Tok::Number(value, dot, unit),
+                span: span(start, i),
+            });
             continue;
         }
         if c == '#' {
@@ -125,7 +134,10 @@ pub fn lex(src: &str, file: u32, base: usize, diags: &mut Vec<Diagnostic>) -> Ve
                 i += 1;
             }
             let s: String = bytes[start..i].iter().collect();
-            out.push(Token { tok: Tok::Color(s), span: span(start, i) });
+            out.push(Token {
+                tok: Tok::Color(s),
+                span: span(start, i),
+            });
             continue;
         }
         if c == '"' {
@@ -171,7 +183,10 @@ pub fn lex(src: &str, file: u32, base: usize, diags: &mut Vec<Diagnostic>) -> Ve
                                 parts.push(StrPart::Code(code, base + offs[code_start]));
                             }
                             other => {
-                                diags.push(err(span(i - 2, i), &format!("unknown escape `\\{other}`")));
+                                diags.push(err(
+                                    span(i - 2, i),
+                                    &format!("unknown escape `\\{other}`"),
+                                ));
                             }
                         }
                     }
@@ -187,25 +202,43 @@ pub fn lex(src: &str, file: u32, base: usize, diags: &mut Vec<Diagnostic>) -> Ve
             if !lit.is_empty() || parts.is_empty() {
                 parts.push(StrPart::Lit(lit));
             }
-            out.push(Token { tok: Tok::Str(parts), span: span(start, i.min(n)) });
+            out.push(Token {
+                tok: Tok::Str(parts),
+                span: span(start, i.min(n)),
+            });
             continue;
         }
         let rest: String = bytes[i..(i + 3).min(n)].iter().collect();
-        if let Some(p) = PUNCTS.iter().chain(PUNCTS_EXTRA.iter()).find(|p| rest.starts_with(**p)) {
+        if let Some(p) = PUNCTS
+            .iter()
+            .chain(PUNCTS_EXTRA.iter())
+            .find(|p| rest.starts_with(**p))
+        {
             let len = p.chars().count();
-            out.push(Token { tok: Tok::Punct(p), span: span(i, i + len) });
+            out.push(Token {
+                tok: Tok::Punct(p),
+                span: span(i, i + len),
+            });
             i += len;
             continue;
         }
         diags.push(err(span(i, i + 1), &format!("unexpected character `{c}`")));
         i += 1;
     }
-    out.push(Token { tok: Tok::Eof, span: span(n, n) });
+    out.push(Token {
+        tok: Tok::Eof,
+        span: span(n, n),
+    });
     out
 }
 
 fn err(span: Span, msg: &str) -> Diagnostic {
-    Diagnostic { level: Level::Error, message: msg.into(), span, label: None }
+    Diagnostic {
+        level: Level::Error,
+        message: msg.into(),
+        span,
+        label: None,
+    }
 }
 
 #[cfg(test)]

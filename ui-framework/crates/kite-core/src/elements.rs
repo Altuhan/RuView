@@ -65,11 +65,21 @@ pub struct CallbackSpec {
 }
 
 const fn p(name: &'static str, ty: Type, default: Default) -> PropSpec {
-    PropSpec { name, ty, default, output: false }
+    PropSpec {
+        name,
+        ty,
+        default,
+        output: false,
+    }
 }
 
 const fn out(name: &'static str, ty: Type, default: Default) -> PropSpec {
-    PropSpec { name, ty, default, output: true }
+    PropSpec {
+        name,
+        ty,
+        default,
+        output: true,
+    }
 }
 
 const F: Type = Type::Float;
@@ -132,8 +142,16 @@ static TEXT: [PropSpec; 5] = [
     p("text", S, Default::Str("")),
     p("color", C, Default::Color(TEXT_COLOR)),
     p("font-size", F, Default::Float(14.0)),
-    p("horizontal-alignment", HALIGN, Default::Enum(EnumType::TextHorizontalAlignment, 0)),
-    p("vertical-alignment", VALIGN, Default::Enum(EnumType::TextVerticalAlignment, 0)),
+    p(
+        "horizontal-alignment",
+        HALIGN,
+        Default::Enum(EnumType::TextHorizontalAlignment, 0),
+    ),
+    p(
+        "vertical-alignment",
+        VALIGN,
+        Default::Enum(EnumType::TextVerticalAlignment, 0),
+    ),
 ];
 static TOUCH_AREA: [PropSpec; 5] = [
     p("enabled", B, Default::Bool(true)),
@@ -151,8 +169,9 @@ static BUTTON: [PropSpec; 7] = [
     out("has-hover", B, Default::Bool(false)),
     out("has-focus", B, Default::Bool(false)),
 ];
-static CHECK_BOX: [PropSpec; 6] = [
+static CHECK_BOX: [PropSpec; 7] = [
     p("text", S, Default::Str("")),
+    p("color", C, Default::Color(TEXT_COLOR)),
     p("checked", B, Default::Bool(false)),
     p("enabled", B, Default::Bool(true)),
     p("font-size", F, Default::Float(14.0)),
@@ -180,15 +199,34 @@ static TEXT_INPUT: [PropSpec; 7] = [
 static LAYOUT: [PropSpec; 3] = [
     p("spacing", F, Default::Float(0.0)),
     p("padding", F, Default::Float(0.0)),
-    p("alignment", LALIGN, Default::Enum(EnumType::LayoutAlignment, 0)),
+    p(
+        "alignment",
+        LALIGN,
+        Default::Enum(EnumType::LayoutAlignment, 0),
+    ),
 ];
 
-static CLICKED: [CallbackSpec; 1] = [CallbackSpec { name: "clicked", params: &[] }];
-static TOGGLED: [CallbackSpec; 1] = [CallbackSpec { name: "toggled", params: &[] }];
-static CHANGED: [CallbackSpec; 1] = [CallbackSpec { name: "changed", params: &[Type::Float] }];
+static CLICKED: [CallbackSpec; 1] = [CallbackSpec {
+    name: "clicked",
+    params: &[],
+}];
+static TOGGLED: [CallbackSpec; 1] = [CallbackSpec {
+    name: "toggled",
+    params: &[],
+}];
+static CHANGED: [CallbackSpec; 1] = [CallbackSpec {
+    name: "changed",
+    params: &[Type::Float],
+}];
 static TEXT_INPUT_CB: [CallbackSpec; 2] = [
-    CallbackSpec { name: "edited", params: &[Type::String] },
-    CallbackSpec { name: "accepted", params: &[Type::String] },
+    CallbackSpec {
+        name: "edited",
+        params: &[Type::String],
+    },
+    CallbackSpec {
+        name: "accepted",
+        params: &[Type::String],
+    },
 ];
 
 impl ElementKind {
@@ -259,7 +297,9 @@ impl ElementKind {
     /// Spec of built-in property number `index`.
     pub fn property(self, index: u32) -> Option<&'static PropSpec> {
         let i = index as usize;
-        COMMON.get(i).or_else(|| self.own_properties().get(i - COMMON.len()))
+        COMMON
+            .get(i)
+            .or_else(|| self.own_properties().get(i - COMMON.len()))
     }
 
     pub fn property_index(self, name: &str) -> Option<u32> {
@@ -267,7 +307,10 @@ impl ElementKind {
     }
 
     pub fn callback_index(self, name: &str) -> Option<u32> {
-        self.callbacks().iter().position(|c| c.name == name).map(|i| i as u32)
+        self.callbacks()
+            .iter()
+            .position(|c| c.name == name)
+            .map(|i| i as u32)
     }
 
     /// Default value of property `index`, including per-kind overrides.
@@ -287,12 +330,18 @@ impl ElementKind {
                 Value::Float(1.0)
             }
             VERTICAL_STRETCH if stretchy => Value::Float(1.0),
-            _ => self.property(index).map(|p| p.default.to_value()).unwrap_or_default(),
+            _ => self
+                .property(index)
+                .map(|p| p.default.to_value())
+                .unwrap_or_default(),
         }
     }
 
     pub fn is_layout(self) -> bool {
-        matches!(self, ElementKind::HorizontalLayout | ElementKind::VerticalLayout)
+        matches!(
+            self,
+            ElementKind::HorizontalLayout | ElementKind::VerticalLayout
+        )
     }
 
     /// Whether an unsized element fills its parent (otherwise it takes its preferred size).
@@ -312,7 +361,10 @@ impl ElementKind {
     pub fn focusable(self) -> bool {
         matches!(
             self,
-            ElementKind::Button | ElementKind::CheckBox | ElementKind::Slider | ElementKind::TextInput
+            ElementKind::Button
+                | ElementKind::CheckBox
+                | ElementKind::Slider
+                | ElementKind::TextInput
         )
     }
 
@@ -328,8 +380,14 @@ mod tests {
     #[test]
     fn property_lookup_is_stable() {
         assert_eq!(ElementKind::Rectangle.property_index("x"), Some(X));
-        assert_eq!(ElementKind::Rectangle.property_index("visible"), Some(VISIBLE));
-        assert_eq!(ElementKind::Rectangle.property_index("background"), Some(COMMON.len() as u32));
+        assert_eq!(
+            ElementKind::Rectangle.property_index("visible"),
+            Some(VISIBLE)
+        );
+        assert_eq!(
+            ElementKind::Rectangle.property_index("background"),
+            Some(COMMON.len() as u32)
+        );
         assert_eq!(ElementKind::Text.property_index("background"), None);
         assert_eq!(ElementKind::Button.callback_index("clicked"), Some(0));
     }

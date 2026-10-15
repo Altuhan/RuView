@@ -32,7 +32,15 @@ pub fn run(component: &(impl kite_core::Component + ?Sized)) -> Result<(), Box<d
 pub fn run_live(watch: PathBuf, mut loader: Loader) -> Result<(), Box<dyn Error>> {
     let first = loader().map_err(|e| -> Box<dyn Error> { e.into() })?;
     let mtime = modified(&watch);
-    run_app(App::new(first, Some(Live { path: watch, loader, mtime, next_check: Instant::now() })))
+    run_app(App::new(
+        first,
+        Some(Live {
+            path: watch,
+            loader,
+            mtime,
+            next_check: Instant::now(),
+        }),
+    ))
 }
 
 fn run_app(mut app: App) -> Result<(), Box<dyn Error>> {
@@ -73,18 +81,30 @@ struct App {
 
 impl App {
     fn new(instance: ComponentInstance, live: Option<Live>) -> Self {
-        Self { instance, gfx: None, live, cursor: Point::default(), modifiers: ModifiersState::empty(), title: String::new(), error: None }
+        Self {
+            instance,
+            gfx: None,
+            live,
+            cursor: Point::default(),
+            modifiers: ModifiersState::empty(),
+            title: String::new(),
+            error: None,
+        }
     }
 
     fn scale(&self) -> f32 {
-        self.gfx.as_ref().map(|g| g.window.scale_factor() as f32).unwrap_or(1.0)
+        self.gfx
+            .as_ref()
+            .map(|g| g.window.scale_factor() as f32)
+            .unwrap_or(1.0)
     }
 
     fn sync_size(&mut self) {
         if let Some(g) = &self.gfx {
             let s = g.window.inner_size();
             let f = g.window.scale_factor() as f32;
-            self.instance.set_size(Size::new(s.width as f32 / f, s.height as f32 / f));
+            self.instance
+                .set_size(Size::new(s.width as f32 / f, s.height as f32 / f));
         }
     }
 
@@ -108,12 +128,20 @@ impl App {
 
     fn redraw(&mut self) -> Result<(), Box<dyn Error>> {
         let scale = self.scale();
-        let Some(g) = &mut self.gfx else { return Ok(()) };
+        let Some(g) = &mut self.gfx else {
+            return Ok(());
+        };
         let PhysicalSize { width, height } = g.window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) else { return Ok(()) };
+        let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) else {
+            return Ok(());
+        };
         g.surface.resize(w, h)?;
         let mut buffer = g.surface.buffer_mut()?;
-        let mut target = Rgb32Buffer { width, height, pixels: &mut buffer };
+        let mut target = Rgb32Buffer {
+            width,
+            height,
+            pixels: &mut buffer,
+        };
         self.instance.render_scaled(&mut target, scale);
         buffer.present()?;
         Ok(())
@@ -172,8 +200,15 @@ impl ApplicationHandler for App {
         let pref = self.instance.preferred_size();
         self.title = self.instance.window_title();
         let attrs = Window::default_attributes()
-            .with_title(if self.title.is_empty() { "Kite" } else { &self.title })
-            .with_inner_size(LogicalSize::new(pref.width.max(64.0) as f64, pref.height.max(48.0) as f64));
+            .with_title(if self.title.is_empty() {
+                "Kite"
+            } else {
+                &self.title
+            })
+            .with_inner_size(LogicalSize::new(
+                pref.width.max(64.0) as f64,
+                pref.height.max(48.0) as f64,
+            ));
         let window = match el.create_window(attrs) {
             Ok(w) => Rc::new(w),
             Err(e) => return self.fail(el, e),
@@ -186,10 +221,16 @@ impl ApplicationHandler for App {
             Ok(s) => s,
             Err(e) => return self.fail(el, e.to_string()),
         };
-        self.gfx = Some(Gfx { window, surface, _context: context });
+        self.gfx = Some(Gfx {
+            window,
+            surface,
+            _context: context,
+        });
         self.sync_size();
         if self.live.is_some() {
-            el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(250)));
+            el.set_control_flow(ControlFlow::WaitUntil(
+                Instant::now() + Duration::from_millis(250),
+            ));
         }
     }
 
@@ -208,9 +249,14 @@ impl ApplicationHandler for App {
                     self.fail(el, e.to_string());
                 }
             }
-            WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
+            WindowEvent::CursorMoved {
+                position: PhysicalPosition { x, y },
+                ..
+            } => {
                 self.cursor = Point::new(x as f32 / scale, y as f32 / scale);
-                self.instance.dispatch_event(Event::PointerMoved { position: self.cursor });
+                self.instance.dispatch_event(Event::PointerMoved {
+                    position: self.cursor,
+                });
             }
             WindowEvent::CursorLeft { .. } => self.instance.dispatch_event(Event::PointerExited),
             WindowEvent::MouseInput { state, button, .. } => {
@@ -246,7 +292,9 @@ impl ApplicationHandler for App {
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         if self.live.is_some() {
             self.check_reload();
-            el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(250)));
+            el.set_control_flow(ControlFlow::WaitUntil(
+                Instant::now() + Duration::from_millis(250),
+            ));
         }
     }
 }

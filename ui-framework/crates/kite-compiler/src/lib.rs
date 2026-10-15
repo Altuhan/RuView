@@ -33,7 +33,9 @@ pub struct Compiled {
 impl Compiled {
     /// The main component: the last exported one.
     pub fn main(&self) -> &ComponentDef {
-        self.components.last().expect("compilation produces at least one component")
+        self.components
+            .last()
+            .expect("compilation produces at least one component")
     }
 
     pub fn component(&self, name: &str) -> Option<&ComponentDef> {
@@ -51,7 +53,9 @@ pub type Loader<'a> = dyn FnMut(&Path) -> std::io::Result<String> + 'a;
 
 /// Compiles source text. `path` names the file (for diagnostics and relative imports).
 pub fn compile_source(path: impl AsRef<Path>, src: &str) -> Result<Compiled, Diagnostics> {
-    compile_with_loader(path.as_ref(), src.to_string(), &mut |p| std::fs::read_to_string(p))
+    compile_with_loader(path.as_ref(), src.to_string(), &mut |p| {
+        std::fs::read_to_string(p)
+    })
 }
 
 /// Reads and compiles a `.ui` file.
@@ -64,7 +68,11 @@ pub fn compile_file(path: impl AsRef<Path>) -> Result<Compiled, Diagnostics> {
             d.items.push(Diagnostic {
                 level: Level::Error,
                 message: format!("cannot read `{}`: {e}", path.display()),
-                span: Span { file: u32::MAX, start: 0, end: 0 },
+                span: Span {
+                    file: u32::MAX,
+                    start: 0,
+                    end: 0,
+                },
                 label: None,
             });
             Err(d)
@@ -73,7 +81,11 @@ pub fn compile_file(path: impl AsRef<Path>) -> Result<Compiled, Diagnostics> {
 }
 
 /// Compiles `src` using `loader` to read imported files.
-pub fn compile_with_loader(path: &Path, src: String, loader: &mut Loader) -> Result<Compiled, Diagnostics> {
+pub fn compile_with_loader(
+    path: &Path,
+    src: String,
+    loader: &mut Loader,
+) -> Result<Compiled, Diagnostics> {
     let mut sources = SourceMap::default();
     let mut items = Vec::new();
     let main_id = sources.add(path, src.clone());
@@ -115,10 +127,17 @@ pub fn compile_with_loader(path: &Path, src: String, loader: &mut Loader) -> Res
                     let id = sources.add(&target, text.clone());
                     let parsed = parser::parse_file(&text, id, &mut items);
                     for name in &imp.names {
-                        if !parsed.components.iter().any(|c| c.name.name == name.name && c.exported) {
+                        if !parsed
+                            .components
+                            .iter()
+                            .any(|c| c.name.name == name.name && c.exported)
+                        {
                             items.push(Diagnostic {
                                 level: Level::Error,
-                                message: format!("`{}` does not export a component named `{}`", imp.path, name.name),
+                                message: format!(
+                                    "`{}` does not export a component named `{}`",
+                                    imp.path, name.name
+                                ),
                                 span: name.span,
                                 label: None,
                             });
@@ -142,12 +161,16 @@ pub fn compile_with_loader(path: &Path, src: String, loader: &mut Loader) -> Res
         }
     }
 
-    let mut outputs: Vec<&ast::Component> = main_ast.components.iter().filter(|c| c.exported).collect();
+    let mut outputs: Vec<&ast::Component> =
+        main_ast.components.iter().filter(|c| c.exported).collect();
     if outputs.is_empty() {
         if let Some(last) = main_ast.components.last() {
             items.push(Diagnostic {
                 level: Level::Warning,
-                message: format!("no exported component; using `{}` (add `export` to silence)", last.name.name),
+                message: format!(
+                    "no exported component; using `{}` (add `export` to silence)",
+                    last.name.name
+                ),
                 span: last.name.span,
                 label: None,
             });
@@ -156,7 +179,11 @@ pub fn compile_with_loader(path: &Path, src: String, loader: &mut Loader) -> Res
             items.push(Diagnostic {
                 level: Level::Error,
                 message: "file contains no component".into(),
-                span: Span { file: main_id, start: 0, end: 0 },
+                span: Span {
+                    file: main_id,
+                    start: 0,
+                    end: 0,
+                },
                 label: None,
             });
         }
@@ -173,7 +200,10 @@ pub fn compile_with_loader(path: &Path, src: String, loader: &mut Loader) -> Res
     if diagnostics.has_errors() {
         Err(diagnostics)
     } else {
-        Ok(Compiled { components, diagnostics })
+        Ok(Compiled {
+            components,
+            diagnostics,
+        })
     }
 }
 

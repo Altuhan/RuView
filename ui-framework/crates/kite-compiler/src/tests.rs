@@ -27,8 +27,14 @@ fn assert_error(src: &str, needle: &str) {
 fn click(app: &ComponentInstance, x: f32, y: f32) {
     let position = Point::new(x, y);
     app.dispatch_event(Event::PointerMoved { position });
-    app.dispatch_event(Event::PointerPressed { position, button: PointerButton::Left });
-    app.dispatch_event(Event::PointerReleased { position, button: PointerButton::Left });
+    app.dispatch_event(Event::PointerPressed {
+        position,
+        button: PointerButton::Left,
+    });
+    app.dispatch_event(Event::PointerReleased {
+        position,
+        button: PointerButton::Left,
+    });
 }
 
 fn center(app: &ComponentInstance, id: &str) -> (f32, f32) {
@@ -58,14 +64,23 @@ export component Counter inherits Window {
 fn counter_reacts_to_clicks() {
     let app = run(COUNTER);
     app.set_size(Size::new(200.0, 120.0));
-    assert_eq!(app.get_property("label").unwrap(), Value::from("Clicked 0 times"));
+    assert_eq!(
+        app.get_property("label").unwrap(),
+        Value::from("Clicked 0 times")
+    );
     let (x, y) = center(&app, "btn");
     click(&app, x, y);
     click(&app, x, y);
     assert_eq!(app.get_property("counter").unwrap(), Value::Int(2));
-    assert_eq!(app.get_property("label").unwrap(), Value::from("Clicked 2 times"));
+    assert_eq!(
+        app.get_property("label").unwrap(),
+        Value::from("Clicked 2 times")
+    );
     app.invoke("reset", &[]).unwrap();
-    assert_eq!(app.get_property("label").unwrap(), Value::from("Clicked 0 times"));
+    assert_eq!(
+        app.get_property("label").unwrap(),
+        Value::from("Clicked 0 times")
+    );
 }
 
 #[test]
@@ -79,7 +94,10 @@ fn rust_handlers_override_and_can_mutate() {
     .unwrap();
     app.invoke("reset", &[]).unwrap();
     assert_eq!(app.get_property("counter").unwrap(), Value::Int(50));
-    assert!(app.set_property("label", "x").is_err(), "out property is read-only");
+    assert!(
+        app.set_property("label", "x").is_err(),
+        "out property is read-only"
+    );
     assert!(app.set_property("counter", "x").is_err(), "type checked");
 }
 
@@ -124,9 +142,15 @@ fn components_children_and_two_way_bindings() {
             }
         }
     "#);
-    assert_eq!(app.element_property("c1.input", "text").unwrap(), Value::from("Ada"));
+    assert_eq!(
+        app.element_property("c1.input", "text").unwrap(),
+        Value::from("Ada")
+    );
     app.set_property("name", "Grace").unwrap();
-    assert_eq!(app.element_property("c1.input", "text").unwrap(), Value::from("Grace"));
+    assert_eq!(
+        app.element_property("c1.input", "text").unwrap(),
+        Value::from("Grace")
+    );
     // Typing into the input flows back through both two-way bindings.
     let (x, y) = center(&app, "c1.input");
     click(&app, x, y);
@@ -252,7 +276,10 @@ fn expressions_and_builtins() {
     assert_eq!(app.get_property("r").unwrap(), Value::Int(3));
     assert_eq!(app.get_property("m").unwrap(), Value::Float(1.0));
     assert_eq!(app.get_property("s").unwrap(), Value::from("low"));
-    assert_eq!(app.get_property("c").unwrap(), Value::Color(kite_core::Color::rgb(128, 0, 0)));
+    assert_eq!(
+        app.get_property("c").unwrap(),
+        Value::Color(kite_core::Color::rgb(128, 0, 0))
+    );
     assert_eq!(app.get_property("i").unwrap(), Value::Int(3));
     assert_eq!(app.get_property("d").unwrap(), Value::Float(3.5));
     assert_eq!(app.get_property("eq").unwrap(), Value::Bool(true));
@@ -271,12 +298,27 @@ fn binding_cycles_do_not_hang() {
 
 #[test]
 fn reports_helpful_errors() {
-    assert_error("export component A { Text { colour: red; } }", "`Text` has no property `colour`");
-    assert_error("export component A { Text { colour: red; } }", "did you mean `color`?");
+    assert_error(
+        "export component A { Text { colour: red; } }",
+        "`Text` has no property `colour`",
+    );
+    assert_error(
+        "export component A { Text { colour: red; } }",
+        "did you mean `color`?",
+    );
     assert_error("export component A { Buton { } }", "did you mean `Button`?");
-    assert_error("export component A { in property <int> n: 1.5; }", "expected `int`, found `float`");
-    assert_error("export component A { Button { pressed: true; } }", "output property");
-    assert_error("export component A { Text { text: missing; } }", "unknown identifier `missing`");
+    assert_error(
+        "export component A { in property <int> n: 1.5; }",
+        "expected `int`, found `float`",
+    );
+    assert_error(
+        "export component A { Button { pressed: true; } }",
+        "output property",
+    );
+    assert_error(
+        "export component A { Text { text: missing; } }",
+        "unknown identifier `missing`",
+    );
     assert_error(
         "export component A { b := Button {} b := Text {} }",
         "duplicate element id `b`",
@@ -289,8 +331,14 @@ fn reports_helpful_errors() {
         "component Inner { property <int> secret; }\nexport component A { i := Inner {} Text { text: i.secret; } }",
         "is private",
     );
-    assert_error("export component A { callback go; Text { text: go(); } }", "only be called as a statement");
-    assert_error("component A { A {} }\nexport component B { A {} }", "recursively");
+    assert_error(
+        "export component A { callback go; Text { text: go(); } }",
+        "only be called as a statement",
+    );
+    assert_error(
+        "component A { A {} }\nexport component B { A {} }",
+        "recursively",
+    );
     let d = errors("export component A {\n    Text { text: 1 +; }\n}");
     let rendered = d.to_string();
     assert!(rendered.contains("test.ui:2:"), "{rendered}");
@@ -322,7 +370,10 @@ fn imports_resolve_through_loader() {
     )
     .unwrap_or_else(|d| panic!("{d}"));
     let app = c.instantiate();
-    assert_eq!(app.element_property("b", "label").unwrap(), Value::from("new"));
+    assert_eq!(
+        app.element_property("b", "label").unwrap(),
+        Value::from("new")
+    );
 }
 
 #[test]
@@ -333,7 +384,10 @@ fn codegen_emits_typed_api() {
     assert!(code.contains("pub fn get_counter(&self) -> i32"));
     assert!(code.contains("pub fn set_counter(&self, value: i32)"));
     assert!(code.contains("pub fn get_label(&self)"));
-    assert!(!code.contains("pub fn set_label"), "out properties have no setter");
+    assert!(
+        !code.contains("pub fn set_label"),
+        "out properties have no setter"
+    );
     assert!(code.contains("pub fn on_reset(&self"));
     assert!(code.contains("pub fn invoke_reset(&self)"));
 }

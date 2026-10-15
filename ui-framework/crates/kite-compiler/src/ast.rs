@@ -67,7 +67,7 @@ pub struct Handler {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Child {
-    Element(Element),
+    Element(Box<Element>),
     /// `@children`: where an instance's children are inserted.
     Placeholder(Span),
 }
@@ -109,7 +109,15 @@ pub struct Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     /// `target op value;` where op is `=`, `+=`, `-=`, `*=` or `/=`.
-    Assign { target: Expr, op: &'static str, value: Expr },
+    Assign {
+        target: Expr,
+        op: &'static str,
+        value: Expr,
+    },
     Expr(Expr),
-    If { cond: Expr, then: Vec<Stmt>, otherwise: Vec<Stmt> },
+    If {
+        cond: Expr,
+        then: Vec<Stmt>,
+        otherwise: Vec<Stmt>,
+    },
 }

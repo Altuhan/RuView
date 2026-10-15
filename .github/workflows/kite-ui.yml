@@ -1,0 +1,41 @@
+name: Kite UI framework
+
+on:
+  push:
+    paths: ["ui-framework/**", ".github/workflows/kite-ui.yml"]
+  pull_request:
+    paths: ["ui-framework/**", ".github/workflows/kite-ui.yml"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: ui-framework
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown, riscv32imac-unknown-none-elf, thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ui-framework
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: no_std (RISC-V, ESP32-C6 class)
+        run: cargo build -p kite-core -p kite-embedded -p kite-example-thermostat --no-default-features --target riscv32imac-unknown-none-elf
+      - name: no_std (Cortex-M4F)
+        run: cargo build -p kite-core -p kite-embedded --no-default-features --target thumbv7em-none-eabihf
+      - name: WebAssembly
+        run: cargo build -p kite-example-web-counter --target wasm32-unknown-unknown --release
+      - name: Check example .ui files
+        run: cargo run -q -p kite-cli --no-default-features -- check examples/ui/gallery.ui examples/counter/ui/counter.ui examples/embedded-thermostat/ui/thermostat.ui

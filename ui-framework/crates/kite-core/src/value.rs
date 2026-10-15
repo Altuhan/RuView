@@ -37,7 +37,10 @@ impl EnumType {
     }
 
     pub fn variant_index(self, name: &str) -> Option<u8> {
-        self.variants().iter().position(|v| *v == name).map(|i| i as u8)
+        self.variants()
+            .iter()
+            .position(|v| *v == name)
+            .map(|i| i as u8)
     }
 }
 
@@ -75,7 +78,12 @@ impl Type {
             "float" | "length" => Type::Float,
             "string" => Type::String,
             "color" | "brush" => Type::Color,
-            _ => return EnumType::ALL.iter().find(|e| e.name() == name).map(|e| Type::Enum(*e)),
+            _ => {
+                return EnumType::ALL
+                    .iter()
+                    .find(|e| e.name() == name)
+                    .map(|e| Type::Enum(*e))
+            }
         })
     }
 
@@ -232,8 +240,14 @@ mod tests {
     #[test]
     fn conversions() {
         assert_eq!(Value::Int(3).convert(Type::Float), Value::Float(3.0));
-        assert_eq!(Value::Int(3).convert(Type::String), Value::String("3".into()));
+        assert_eq!(
+            Value::Int(3).convert(Type::String),
+            Value::String("3".into())
+        );
         assert_eq!(Type::from_name("length"), Some(Type::Float));
-        assert_eq!(Type::from_name("LayoutAlignment"), Some(Type::Enum(EnumType::LayoutAlignment)));
+        assert_eq!(
+            Type::from_name("LayoutAlignment"),
+            Some(Type::Enum(EnumType::LayoutAlignment))
+        );
     }
 }

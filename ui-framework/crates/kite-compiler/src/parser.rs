@@ -24,14 +24,27 @@ pub struct Parser<'d> {
 
 pub fn parse_file(src: &str, file: u32, diags: &mut Vec<Diagnostic>) -> File {
     let toks = lex(src, file, 0, diags);
-    let mut p = Parser { toks, pos: 0, diags };
+    let mut p = Parser {
+        toks,
+        pos: 0,
+        diags,
+    };
     p.file()
 }
 
 /// Parses an expression embedded in a string (`\{...}`) starting at `offset`.
-pub fn parse_embedded_expr(src: &str, file: u32, offset: usize, diags: &mut Vec<Diagnostic>) -> Expr {
+pub fn parse_embedded_expr(
+    src: &str,
+    file: u32,
+    offset: usize,
+    diags: &mut Vec<Diagnostic>,
+) -> Expr {
     let toks = lex(src, file, offset, diags);
-    let mut p = Parser { toks, pos: 0, diags };
+    let mut p = Parser {
+        toks,
+        pos: 0,
+        diags,
+    };
     let e = p.expr();
     if !matches!(p.peek(), Tok::Eof) {
         p.error_here("unexpected tokens after interpolated expression");
@@ -96,7 +109,12 @@ impl Parser<'_> {
 
     fn error_here(&mut self, msg: &str) {
         let span = self.span();
-        self.diags.push(Diagnostic { level: Level::Error, message: msg.into(), span, label: None });
+        self.diags.push(Diagnostic {
+            level: Level::Error,
+            message: msg.into(),
+            span,
+            label: None,
+        });
     }
 
     fn expect(&mut self, p: &str) -> PResult<Span> {
@@ -151,7 +169,10 @@ impl Parser<'_> {
     }
 
     fn file(&mut self) -> File {
-        let mut file = File { imports: Vec::new(), components: Vec::new() };
+        let mut file = File {
+            imports: Vec::new(),
+            components: Vec::new(),
+        };
         while !matches!(self.peek(), Tok::Eof) {
             let r = if self.is_kw("import") {
                 self.import().map(|i| file.imports.push(i))
@@ -164,7 +185,11 @@ impl Parser<'_> {
             };
             if r.is_err() {
                 // Skip to the next top-level item.
-                while !matches!(self.peek(), Tok::Eof) && !self.is_kw("component") && !self.is_kw("export") && !self.is_kw("import") {
+                while !matches!(self.peek(), Tok::Eof)
+                    && !self.is_kw("component")
+                    && !self.is_kw("export")
+                    && !self.is_kw("import")
+                {
                     self.bump();
                 }
             }
@@ -205,7 +230,11 @@ impl Parser<'_> {
             }
         };
         self.expect(";")?;
-        Ok(Import { names, path, span: start.to(self.prev_span()) })
+        Ok(Import {
+            names,
+            path,
+            span: start.to(self.prev_span()),
+        })
     }
 
     fn component(&mut self) -> PResult<Component> {
@@ -227,11 +256,19 @@ impl Parser<'_> {
         } else {
             None
         };
-        let mut root = Element { base, span: start.to(name.span), ..Default::default() };
+        let mut root = Element {
+            base,
+            span: start.to(name.span),
+            ..Default::default()
+        };
         self.expect("{")?;
         self.body(&mut root);
         self.expect("}")?;
-        Ok(Component { name, exported, root })
+        Ok(Component {
+            name,
+            exported,
+            root,
+        })
     }
 
     fn body(&mut self, el: &mut Element) {
@@ -272,7 +309,11 @@ impl Parser<'_> {
         }
         let vis = self.visibility();
         let is_prop_kw = |t: &Tok| matches!(t, Tok::Ident(s) if s == "property");
-        if (vis.is_some() && is_prop_kw(self.peek_at(1))) || (vis.is_none() && is_prop_kw(self.peek()) && matches!(self.peek_at(1), Tok::Punct("<"))) {
+        if (vis.is_some() && is_prop_kw(self.peek_at(1)))
+            || (vis.is_none()
+                && is_prop_kw(self.peek())
+                && matches!(self.peek_at(1), Tok::Punct("<")))
+        {
             if vis.is_some() {
                 self.bump();
             }
@@ -289,7 +330,12 @@ impl Parser<'_> {
                 None
             };
             self.expect(";")?;
-            el.properties.push(PropertyDecl { visibility: vis.unwrap_or(Visibility::Private), ty, name, init });
+            el.properties.push(PropertyDecl {
+                visibility: vis.unwrap_or(Visibility::Private),
+                ty,
+                name,
+                init,
+            });
             return Ok(());
         }
         if self.is_kw("callback") && matches!(self.peek_at(1), Tok::Ident(_)) {
@@ -315,11 +361,11 @@ impl Parser<'_> {
                 self.bump();
                 let base = self.ident("element type")?;
                 let child = self.element(Some(first), base)?;
-                el.children.push(Child::Element(child));
+                el.children.push(Child::Element(Box::new(child)));
             }
             Tok::Punct("{") => {
                 let child = self.element(None, first)?;
-                el.children.push(Child::Element(child));
+                el.children.push(Child::Element(Box::new(child)));
             }
             Tok::Punct(":") => {
                 self.bump();
@@ -347,7 +393,11 @@ impl Parser<'_> {
                 }
                 self.expect("=>")?;
                 let body = self.block()?;
-                el.handlers.push(Handler { name: first, params, body });
+                el.handlers.push(Handler {
+                    name: first,
+                    params,
+                    body,
+                });
             }
             t => {
                 let found = Self::describe(t);
@@ -363,7 +413,12 @@ impl Parser<'_> {
 
     fn element(&mut self, id: Option<Ident>, base: Ident) -> PResult<Element> {
         let start = id.as_ref().map(|i| i.span).unwrap_or(base.span);
-        let mut el = Element { id, base: Some(base), span: start, ..Default::default() };
+        let mut el = Element {
+            id,
+            base: Some(base),
+            span: start,
+            ..Default::default()
+        };
         self.expect("{")?;
         self.body(&mut el);
         let end = self.expect("}")?;
@@ -403,7 +458,11 @@ impl Parser<'_> {
             } else {
                 Vec::new()
             };
-            return Ok(Stmt::If { cond, then, otherwise });
+            return Ok(Stmt::If {
+                cond,
+                then,
+                otherwise,
+            });
         }
         let target = self.expr();
         for op in ["=", "+=", "-=", "*=", "/="] {
@@ -430,11 +489,17 @@ impl Parser<'_> {
         if self.eat("?") {
             let a = self.ternary();
             if self.expect(":").is_err() {
-                return Expr { kind: ExprKind::Error, span: cond.span };
+                return Expr {
+                    kind: ExprKind::Error,
+                    span: cond.span,
+                };
             }
             let b = self.ternary();
             let span = cond.span.to(b.span);
-            return Expr { kind: ExprKind::Ternary(Box::new(cond), Box::new(a), Box::new(b)), span };
+            return Expr {
+                kind: ExprKind::Ternary(Box::new(cond), Box::new(a), Box::new(b)),
+                span,
+            };
         }
         cond
     }
@@ -468,7 +533,10 @@ impl Parser<'_> {
             self.bump();
             let rhs = self.binary(prec + 1);
             let span = lhs.span.to(rhs.span);
-            lhs = Expr { kind: ExprKind::Binary(op, Box::new(lhs), Box::new(rhs)), span };
+            lhs = Expr {
+                kind: ExprKind::Binary(op, Box::new(lhs), Box::new(rhs)),
+                span,
+            };
         }
         lhs
     }
@@ -483,7 +551,10 @@ impl Parser<'_> {
                     return e;
                 }
                 let op = if op == "-" { "-" } else { "!" };
-                return Expr { kind: ExprKind::Unary(op, Box::new(e)), span };
+                return Expr {
+                    kind: ExprKind::Unary(op, Box::new(e)),
+                    span,
+                };
             }
         }
         self.postfix()
@@ -496,9 +567,17 @@ impl Parser<'_> {
                 match self.ident("member name") {
                     Ok(id) => {
                         let span = e.span.to(id.span);
-                        e = Expr { kind: ExprKind::Member(Box::new(e), id), span };
+                        e = Expr {
+                            kind: ExprKind::Member(Box::new(e), id),
+                            span,
+                        };
                     }
-                    Err(()) => return Expr { kind: ExprKind::Error, span: e.span },
+                    Err(()) => {
+                        return Expr {
+                            kind: ExprKind::Error,
+                            span: e.span,
+                        }
+                    }
                 }
             } else if self.is_punct("(") {
                 self.bump();
@@ -511,7 +590,10 @@ impl Parser<'_> {
                 }
                 let end = self.expect(")").unwrap_or(e.span);
                 let span = e.span.to(end);
-                e = Expr { kind: ExprKind::Call(Box::new(e), args), span };
+                e = Expr {
+                    kind: ExprKind::Call(Box::new(e), args),
+                    span,
+                };
             } else {
                 break;
             }
@@ -531,7 +613,10 @@ impl Parser<'_> {
             Tok::Punct("(") => {
                 let e = self.expr();
                 let end = self.expect(")").unwrap_or(e.span);
-                return Expr { kind: e.kind, span: t.span.to(end) };
+                return Expr {
+                    kind: e.kind,
+                    span: t.span.to(end),
+                };
             }
             other => {
                 let found = Self::describe(&other);
@@ -590,7 +675,9 @@ mod tests {
         assert_eq!(c.root.properties[0].visibility, Visibility::InOut);
         assert_eq!(c.root.callbacks[0].params.len(), 1);
         assert_eq!(c.root.bindings.len(), 2);
-        let Child::Element(layout) = &c.root.children[0] else { panic!() };
+        let Child::Element(layout) = &c.root.children[0] else {
+            panic!()
+        };
         assert_eq!(layout.children.len(), 3);
     }
 
@@ -599,9 +686,15 @@ mod tests {
         let mut d = Vec::new();
         let e = parse_embedded_expr("1 + 2 * 3 == 7 && !b ? x : y", 0, 0, &mut d);
         assert!(d.is_empty());
-        let ExprKind::Ternary(c, _, _) = e.kind else { panic!() };
-        let ExprKind::Binary("&&", l, _) = c.kind else { panic!() };
-        let ExprKind::Binary("==", l, _) = l.kind else { panic!() };
+        let ExprKind::Ternary(c, _, _) = e.kind else {
+            panic!()
+        };
+        let ExprKind::Binary("&&", l, _) = c.kind else {
+            panic!()
+        };
+        let ExprKind::Binary("==", l, _) = l.kind else {
+            panic!()
+        };
         assert!(matches!(l.kind, ExprKind::Binary("+", _, _)));
     }
 

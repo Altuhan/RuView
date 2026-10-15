@@ -257,15 +257,27 @@ pub mod build {
     }
 
     pub fn default_prop(name: &str, ty: Type, v: Value) -> PropertyDef {
-        PropertyDef { name: name.into(), ty, init: PropertyInit::Default(v) }
+        PropertyDef {
+            name: name.into(),
+            ty,
+            init: PropertyInit::Default(v),
+        }
     }
 
     pub fn bound_prop(name: &str, ty: Type, e: Expr) -> PropertyDef {
-        PropertyDef { name: name.into(), ty, init: PropertyInit::Binding(e) }
+        PropertyDef {
+            name: name.into(),
+            ty,
+            init: PropertyInit::Binding(e),
+        }
     }
 
     pub fn alias_prop(name: &str, ty: Type, target: PropRef) -> PropertyDef {
-        PropertyDef { name: name.into(), ty, init: PropertyInit::Alias(target) }
+        PropertyDef {
+            name: name.into(),
+            ty,
+            init: PropertyInit::Alias(target),
+        }
     }
 }
 
@@ -286,8 +298,18 @@ impl ElementDef {
         let callbacks = kind
             .callbacks()
             .iter()
-            .map(|c| CallbackDef { name: c.name.into(), params: c.params.to_vec(), handler: None })
+            .map(|c| CallbackDef {
+                name: c.name.into(),
+                params: c.params.to_vec(),
+                handler: None,
+            })
             .collect();
-        Self { kind, id: id.into(), children: Vec::new(), properties, callbacks }
+        Self {
+            kind,
+            id: id.into(),
+            children: Vec::new(),
+            properties,
+            callbacks,
+        }
     }
 }

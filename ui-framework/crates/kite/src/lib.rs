@@ -75,7 +75,9 @@ impl<T: Component> RunExt for T {}
 
 /// Loads a `.ui` file at runtime and instantiates its main component.
 #[cfg(feature = "interpreter")]
-pub fn load(path: impl AsRef<std::path::Path>) -> Result<ComponentInstance, kite_compiler::Diagnostics> {
+pub fn load(
+    path: impl AsRef<std::path::Path>,
+) -> Result<ComponentInstance, kite_compiler::Diagnostics> {
     kite_compiler::compile_file(path).map(|c| c.instantiate())
 }
 

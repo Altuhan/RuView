@@ -40,8 +40,17 @@ struct Scope {
 }
 
 enum Pending {
-    Binding { elem: u32, name: ast::Ident, binding: Binding, scope: u32 },
-    Handler { elem: u32, handler: ast::Handler, scope: u32 },
+    Binding {
+        elem: u32,
+        name: ast::Ident,
+        binding: Binding,
+        scope: u32,
+    },
+    Handler {
+        elem: u32,
+        handler: ast::Handler,
+        scope: u32,
+    },
 }
 
 struct Frame {
@@ -67,14 +76,27 @@ struct Ctx<'c> {
 }
 
 fn error(diags: &mut Vec<Diagnostic>, span: Span, message: String, label: Option<String>) {
-    diags.push(Diagnostic { level: Level::Error, message, span, label });
+    diags.push(Diagnostic {
+        level: Level::Error,
+        message,
+        span,
+        label,
+    });
 }
 
 const VOID: (Expr, Type) = (Expr::Literal(Value::Void), Type::Void);
 
 impl<'a> Lowerer<'a> {
     pub fn new(reg: &'a Registry, diags: &'a mut Vec<Diagnostic>) -> Self {
-        Self { reg, elems: Vec::new(), scopes: Vec::new(), pending: Vec::new(), frames: Vec::new(), stack: Vec::new(), diags }
+        Self {
+            reg,
+            elems: Vec::new(),
+            scopes: Vec::new(),
+            pending: Vec::new(),
+            frames: Vec::new(),
+            stack: Vec::new(),
+            diags,
+        }
     }
 
     fn err(&mut self, span: Span, message: impl Into<String>) {
@@ -82,16 +104,30 @@ impl<'a> Lowerer<'a> {
     }
 
     fn err_hint(&mut self, span: Span, message: impl Into<String>, hint: Option<&str>) {
-        error(self.diags, span, message.into(), hint.map(|h| format!("did you mean `{h}`?")));
+        error(
+            self.diags,
+            span,
+            message.into(),
+            hint.map(|h| format!("did you mean `{h}`?")),
+        );
     }
 
     fn warn(&mut self, span: Span, message: impl Into<String>) {
-        self.diags.push(Diagnostic { level: Level::Warning, message: message.into(), span, label: None });
+        self.diags.push(Diagnostic {
+            level: Level::Warning,
+            message: message.into(),
+            span,
+            label: None,
+        });
     }
 
     /// Compiles component `name` into a flat [`ComponentDef`].
     pub fn lower(mut self, name: &str) -> ComponentDef {
-        self.scopes.push(Scope { root: 0, prefix: String::new(), ids: HashMap::new() });
+        self.scopes.push(Scope {
+            root: 0,
+            prefix: String::new(),
+            ids: HashMap::new(),
+        });
         let span = self.reg.get(name).map(|c| c.name.span).unwrap_or_default();
         let (root, _) = self.instantiate(name, span, None, 0, None);
         debug_assert_eq!(root, 0);
@@ -114,7 +150,10 @@ impl<'a> Lowerer<'a> {
             let p = &root_info.def.properties[*idx as usize];
             public_properties.push(PublicProperty {
                 name: p.name.clone(),
-                prop: PropRef { element: 0, property: *idx },
+                prop: PropRef {
+                    element: 0,
+                    property: *idx,
+                },
                 ty: p.ty,
                 access,
             });
@@ -125,7 +164,14 @@ impl<'a> Lowerer<'a> {
             .into_iter()
             .map(|i| {
                 let c = &root_info.def.callbacks[i as usize];
-                PublicCallback { name: c.name.clone(), callback: CallbackRef { element: 0, callback: i }, params: c.params.clone() }
+                PublicCallback {
+                    name: c.name.clone(),
+                    callback: CallbackRef {
+                        element: 0,
+                        callback: i,
+                    },
+                    params: c.params.clone(),
+                }
             })
             .collect();
         ComponentDef {
@@ -136,7 +182,13 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn new_element(&mut self, kind: ElementKind, type_name: &str, parent: Option<u32>, scope: u32) -> u32 {
+    fn new_element(
+        &mut self,
+        kind: ElementKind,
+        type_name: &str,
+        parent: Option<u32>,
+        scope: u32,
+    ) -> u32 {
         let idx = self.elems.len() as u32;
         self.elems.push(ElemInfo {
             def: ElementDef::new(kind, ""),
@@ -176,13 +228,26 @@ impl<'a> Lowerer<'a> {
             return (idx, (idx, None));
         };
         if self.stack.iter().any(|s| s == name) {
-            self.err(span, format!("component `{name}` instantiates itself recursively"));
+            self.err(
+                span,
+                format!("component `{name}` instantiates itself recursively"),
+            );
             let idx = self.new_element(ElementKind::Empty, name, parent, scope);
             return (idx, (idx, None));
         }
         self.stack.push(name.to_string());
-        let base = comp.root.base.as_ref().map(|b| b.name.clone()).unwrap_or_else(|| "Empty".into());
-        let base_span = comp.root.base.as_ref().map(|b| b.span).unwrap_or(comp.name.span);
+        let base = comp
+            .root
+            .base
+            .as_ref()
+            .map(|b| b.name.clone())
+            .unwrap_or_else(|| "Empty".into());
+        let base_span = comp
+            .root
+            .base
+            .as_ref()
+            .map(|b| b.span)
+            .unwrap_or(comp.name.span);
         let (idx, base_target) = self.instantiate(&base, base_span, parent, scope, usage_id);
         self.elems[idx as usize].type_name = name.to_string();
         let parent_prefix = self.scopes[scope as usize].prefix.clone();
@@ -191,13 +256,20 @@ impl<'a> Lowerer<'a> {
             Some(id) => format!("{parent_prefix}{id}."),
             None => format!("{parent_prefix}{name}#{idx}."),
         };
-        self.scopes.push(Scope { root: idx, prefix, ids: HashMap::new() });
+        self.scopes.push(Scope {
+            root: idx,
+            prefix,
+            ids: HashMap::new(),
+        });
         let inner = (self.scopes.len() - 1) as u32;
         self.frames.push(Frame { placeholder: None });
         self.apply_body(&comp.root, idx, inner, base_target);
         let frame = self.frames.pop().expect("frame");
         self.stack.pop();
-        let target = frame.placeholder.map(|(e, pos)| (e, Some(pos))).unwrap_or(base_target);
+        let target = frame
+            .placeholder
+            .map(|(e, pos)| (e, Some(pos)))
+            .unwrap_or(base_target);
         (idx, target)
     }
 
@@ -214,7 +286,13 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Expands an element written in source within `scope`.
-    fn expand(&mut self, e: &ast::Element, scope: u32, parent: u32, pos: &mut Option<usize>) -> u32 {
+    fn expand(
+        &mut self,
+        e: &ast::Element,
+        scope: u32,
+        parent: u32,
+        pos: &mut Option<usize>,
+    ) -> u32 {
         let base = e.base.as_ref().expect("child elements have a type");
         let id = e.id.as_ref().map(|i| i.name.as_str());
         let (idx, target) = self.instantiate(&base.name, base.span, Some(parent), scope, id);
@@ -222,20 +300,30 @@ impl<'a> Lowerer<'a> {
         if let Some(id) = &e.id {
             let reserved = ["root", "self", "parent", "true", "false"];
             if reserved.contains(&id.name.as_str()) {
-                self.err(id.span, format!("`{}` is reserved and cannot be used as an id", id.name));
+                self.err(
+                    id.span,
+                    format!("`{}` is reserved and cannot be used as an id", id.name),
+                );
             } else if self.scopes[scope as usize].ids.contains_key(&id.name) {
                 self.err(id.span, format!("duplicate element id `{}`", id.name));
             } else {
                 self.scopes[scope as usize].ids.insert(id.name.clone(), idx);
             }
-            self.elems[idx as usize].def.id = format!("{}{}", self.scopes[scope as usize].prefix, id.name);
+            self.elems[idx as usize].def.id =
+                format!("{}{}", self.scopes[scope as usize].prefix, id.name);
         }
         self.apply_body(e, idx, scope, target);
         idx
     }
 
     /// Applies declarations, bindings, handlers and children of `body` to element `idx`.
-    fn apply_body(&mut self, body: &ast::Element, idx: u32, scope: u32, target: (u32, Option<usize>)) {
+    fn apply_body(
+        &mut self,
+        body: &ast::Element,
+        idx: u32,
+        scope: u32,
+        target: (u32, Option<usize>),
+    ) {
         for p in &body.properties {
             let Some(ty) = Type::from_name(&p.ty.name) else {
                 let names = ["int", "float", "length", "bool", "string", "color", "brush"];
@@ -245,15 +333,27 @@ impl<'a> Lowerer<'a> {
             };
             let info = &mut self.elems[idx as usize];
             if info.def.properties.iter().any(|q| q.name == p.name.name) {
-                let msg = format!("property `{}` is already declared on `{}`", p.name.name, info.type_name);
+                let msg = format!(
+                    "property `{}` is already declared on `{}`",
+                    p.name.name, info.type_name
+                );
                 self.err(p.name.span, msg);
                 continue;
             }
             let pi = info.def.properties.len() as u32;
-            info.def.properties.push(PropertyDef { name: p.name.name.clone(), ty, init: PropertyInit::Default(ty.default_value()) });
+            info.def.properties.push(PropertyDef {
+                name: p.name.name.clone(),
+                ty,
+                init: PropertyInit::Default(ty.default_value()),
+            });
             info.declared.insert(pi, (p.visibility, scope));
             if let Some(b) = &p.init {
-                self.pending.push(Pending::Binding { elem: idx, name: p.name.clone(), binding: b.clone(), scope });
+                self.pending.push(Pending::Binding {
+                    elem: idx,
+                    name: p.name.clone(),
+                    binding: b.clone(),
+                    scope,
+                });
             }
         }
         for c in &body.callbacks {
@@ -266,19 +366,35 @@ impl<'a> Lowerer<'a> {
             }
             let info = &mut self.elems[idx as usize];
             if info.def.callbacks.iter().any(|q| q.name == c.name.name) {
-                let msg = format!("callback `{}` is already declared on `{}`", c.name.name, info.type_name);
+                let msg = format!(
+                    "callback `{}` is already declared on `{}`",
+                    c.name.name, info.type_name
+                );
                 self.err(c.name.span, msg);
                 continue;
             }
             let ci = info.def.callbacks.len() as u32;
-            info.def.callbacks.push(CallbackDef { name: c.name.name.clone(), params, handler: None });
+            info.def.callbacks.push(CallbackDef {
+                name: c.name.name.clone(),
+                params,
+                handler: None,
+            });
             info.declared_callbacks.insert(ci, scope);
         }
         for (name, b) in &body.bindings {
-            self.pending.push(Pending::Binding { elem: idx, name: name.clone(), binding: b.clone(), scope });
+            self.pending.push(Pending::Binding {
+                elem: idx,
+                name: name.clone(),
+                binding: b.clone(),
+                scope,
+            });
         }
         for h in &body.handlers {
-            self.pending.push(Pending::Handler { elem: idx, handler: h.clone(), scope });
+            self.pending.push(Pending::Handler {
+                elem: idx,
+                handler: h.clone(),
+                scope,
+            });
         }
         let (target_elem, mut pos) = target;
         for child in &body.children {
@@ -289,7 +405,10 @@ impl<'a> Lowerer<'a> {
                 Child::Placeholder(span) => {
                     let frame_ok = !self.frames.is_empty();
                     if !frame_ok {
-                        self.err(*span, "`@children` can only be used inside a component definition");
+                        self.err(
+                            *span,
+                            "`@children` can only be used inside a component definition",
+                        );
                         continue;
                     }
                     let frame = self.frames.last_mut().expect("frame");
@@ -322,7 +441,10 @@ impl<'a> Lowerer<'a> {
         let idx = info.def.properties.iter().position(|p| p.name == name)? as u32;
         if let Some((Visibility::Private, decl_scope)) = info.declared.get(&idx) {
             if *decl_scope != scope {
-                return Some(Err(format!("property `{name}` of `{}` is private", info.type_name)));
+                return Some(Err(format!(
+                    "property `{name}` of `{}` is private",
+                    info.type_name
+                )));
             }
         }
         Some(Ok((idx, info.def.properties[idx as usize].ty)))
@@ -352,7 +474,12 @@ impl<'a> Lowerer<'a> {
     }
 
     fn prop_candidates(&self, e: u32) -> Vec<String> {
-        self.elems[e as usize].def.properties.iter().map(|p| p.name.clone()).collect()
+        self.elems[e as usize]
+            .def
+            .properties
+            .iter()
+            .map(|p| p.name.clone())
+            .collect()
     }
 
     /// Resolves an lvalue / property path expression to a property.
@@ -361,7 +488,15 @@ impl<'a> Lowerer<'a> {
             ExprKind::Ident(name) => {
                 for el in self.lookup_chain(ctx) {
                     match self.find_prop(el, name, ctx.scope) {
-                        Some(Ok((i, t))) => return Some((PropRef { element: el, property: i }, t)),
+                        Some(Ok((i, t))) => {
+                            return Some((
+                                PropRef {
+                                    element: el,
+                                    property: i,
+                                },
+                                t,
+                            ))
+                        }
                         Some(Err(msg)) => {
                             self.err(e.span, msg);
                             return None;
@@ -376,17 +511,35 @@ impl<'a> Lowerer<'a> {
             }
             ExprKind::Member(obj, field) => {
                 let ExprKind::Ident(obj_name) = &obj.kind else {
-                    self.err(e.span, "expected a property reference such as `root.value` or `id.text`");
+                    self.err(
+                        e.span,
+                        "expected a property reference such as `root.value` or `id.text`",
+                    );
                     return None;
                 };
                 let Some(target) = self.element_ref(obj_name, ctx) else {
-                    let ids: Vec<String> = self.scopes[ctx.scope as usize].ids.keys().cloned().collect();
-                    let hint = suggest(obj_name, ids.iter().map(|s| s.as_str()).chain(["root", "self", "parent"]));
+                    let ids: Vec<String> = self.scopes[ctx.scope as usize]
+                        .ids
+                        .keys()
+                        .cloned()
+                        .collect();
+                    let hint = suggest(
+                        obj_name,
+                        ids.iter()
+                            .map(|s| s.as_str())
+                            .chain(["root", "self", "parent"]),
+                    );
                     self.err_hint(obj.span, format!("unknown element `{obj_name}`"), hint);
                     return None;
                 };
                 match self.find_prop(target, &field.name, ctx.scope) {
-                    Some(Ok((i, t))) => Some((PropRef { element: target, property: i }, t)),
+                    Some(Ok((i, t))) => Some((
+                        PropRef {
+                            element: target,
+                            property: i,
+                        },
+                        t,
+                    )),
                     Some(Err(msg)) => {
                         self.err(field.span, msg);
                         None
@@ -395,7 +548,11 @@ impl<'a> Lowerer<'a> {
                         let cands = self.prop_candidates(target);
                         let hint = suggest(&field.name, cands.iter().map(|s| s.as_str()));
                         let tn = self.elems[target as usize].type_name.clone();
-                        self.err_hint(field.span, format!("`{tn}` has no property `{}`", field.name), hint);
+                        self.err_hint(
+                            field.span,
+                            format!("`{tn}` has no property `{}`", field.name),
+                            hint,
+                        );
                         None
                     }
                 }
@@ -413,14 +570,23 @@ impl<'a> Lowerer<'a> {
         let name = info.def.properties[r.property as usize].name.clone();
         if let Some(spec) = info.def.kind.property(r.property) {
             if (r.property as usize) < info.def.kind.property_count() && spec.output {
-                self.err(span, format!("`{name}` is an output property of `{}` and cannot be set", info.type_name));
+                self.err(
+                    span,
+                    format!(
+                        "`{name}` is an output property of `{}` and cannot be set",
+                        info.type_name
+                    ),
+                );
                 return false;
             }
         }
         if let Some((Visibility::Out, decl_scope)) = info.declared.get(&r.property) {
             if *decl_scope != scope {
                 let tn = info.type_name.clone();
-                self.err(span, format!("`{name}` is declared `out` in `{tn}` and cannot be set from outside"));
+                self.err(
+                    span,
+                    format!("`{name}` is declared `out` in `{tn}` and cannot be set from outside"),
+                );
                 return false;
             }
         }
@@ -431,47 +597,81 @@ impl<'a> Lowerer<'a> {
 
     fn apply_pending(&mut self, p: Pending) {
         match p {
-            Pending::Binding { elem, name, binding, scope } => {
-                let ctx = Ctx { scope, self_elem: elem, args: &[] };
+            Pending::Binding {
+                elem,
+                name,
+                binding,
+                scope,
+            } => {
+                let ctx = Ctx {
+                    scope,
+                    self_elem: elem,
+                    args: &[],
+                };
                 let found = match self.find_prop(elem, &name.name, scope) {
                     Some(Ok(v)) => v,
                     Some(Err(msg)) => return self.err(name.span, msg),
                     None => {
                         if self.find_callback(elem, &name.name).is_some() {
-                            return self.err(name.span, format!("`{}` is a callback; use `{} => {{ ... }}`", name.name, name.name));
+                            return self.err(
+                                name.span,
+                                format!(
+                                    "`{}` is a callback; use `{} => {{ ... }}`",
+                                    name.name, name.name
+                                ),
+                            );
                         }
                         let cands = self.prop_candidates(elem);
                         let hint = suggest(&name.name, cands.iter().map(|s| s.as_str()));
                         let tn = self.elems[elem as usize].type_name.clone();
-                        return self.err_hint(name.span, format!("`{tn}` has no property `{}`", name.name), hint);
+                        return self.err_hint(
+                            name.span,
+                            format!("`{tn}` has no property `{}`", name.name),
+                            hint,
+                        );
                     }
                 };
                 let (pi, ty) = found;
-                let r = PropRef { element: elem, property: pi };
+                let r = PropRef {
+                    element: elem,
+                    property: pi,
+                };
                 if !self.check_writable(r, scope, name.span) {
                     return;
                 }
                 if let Some((prev_scope, _)) = self.elems[elem as usize].bound.get(&(false, pi)) {
                     if *prev_scope == scope {
-                        return self.err(name.span, format!("property `{}` is bound more than once", name.name));
+                        return self.err(
+                            name.span,
+                            format!("property `{}` is bound more than once", name.name),
+                        );
                     }
                 }
-                self.elems[elem as usize].bound.insert((false, pi), (scope, name.span));
+                self.elems[elem as usize]
+                    .bound
+                    .insert((false, pi), (scope, name.span));
                 let init = match &binding {
                     Binding::Expr(e) => {
-                        let lowered = self.percent_binding(&name.name, e, &ctx).unwrap_or_else(|| {
-                            let (x, t) = self.expr(e, &ctx, Some(ty));
-                            self.coerce(x, t, ty, e.span)
-                        });
+                        let lowered =
+                            self.percent_binding(&name.name, e, &ctx)
+                                .unwrap_or_else(|| {
+                                    let (x, t) = self.expr(e, &ctx, Some(ty));
+                                    self.coerce(x, t, ty, e.span)
+                                });
                         PropertyInit::Binding(lowered)
                     }
                     Binding::TwoWay(e) => {
-                        let Some((target, tty)) = self.resolve_prop_path(e, &ctx) else { return };
+                        let Some((target, tty)) = self.resolve_prop_path(e, &ctx) else {
+                            return;
+                        };
                         if target == r {
                             return self.err(e.span, "a property cannot be bound to itself");
                         }
                         if tty != ty {
-                            return self.err(e.span, format!("two-way binding between `{ty}` and `{tty}`"));
+                            return self.err(
+                                e.span,
+                                format!("two-way binding between `{ty}` and `{tty}`"),
+                            );
                         }
                         if !self.check_writable(target, scope, e.span) {
                             return;
@@ -481,27 +681,59 @@ impl<'a> Lowerer<'a> {
                 };
                 self.elems[elem as usize].def.properties[pi as usize].init = init;
             }
-            Pending::Handler { elem, handler, scope } => {
+            Pending::Handler {
+                elem,
+                handler,
+                scope,
+            } => {
                 let Some((ci, params)) = self.find_callback(elem, &handler.name.name) else {
-                    let names: Vec<String> = self.elems[elem as usize].def.callbacks.iter().map(|c| c.name.clone()).collect();
+                    let names: Vec<String> = self.elems[elem as usize]
+                        .def
+                        .callbacks
+                        .iter()
+                        .map(|c| c.name.clone())
+                        .collect();
                     let hint = suggest(&handler.name.name, names.iter().map(|s| s.as_str()));
                     let tn = self.elems[elem as usize].type_name.clone();
-                    return self.err_hint(handler.name.span, format!("`{tn}` has no callback `{}`", handler.name.name), hint);
+                    return self.err_hint(
+                        handler.name.span,
+                        format!("`{tn}` has no callback `{}`", handler.name.name),
+                        hint,
+                    );
                 };
                 if handler.params.len() > params.len() {
                     return self.err(
                         handler.name.span,
-                        format!("callback `{}` has {} parameter(s), but the handler names {}", handler.name.name, params.len(), handler.params.len()),
+                        format!(
+                            "callback `{}` has {} parameter(s), but the handler names {}",
+                            handler.name.name,
+                            params.len(),
+                            handler.params.len()
+                        ),
                     );
                 }
                 if let Some((prev, _)) = self.elems[elem as usize].bound.get(&(true, ci)) {
                     if *prev == scope {
-                        return self.err(handler.name.span, format!("callback `{}` already has a handler", handler.name.name));
+                        return self.err(
+                            handler.name.span,
+                            format!("callback `{}` already has a handler", handler.name.name),
+                        );
                     }
                 }
-                self.elems[elem as usize].bound.insert((true, ci), (scope, handler.name.span));
-                let args: Vec<(String, Type)> = handler.params.iter().map(|p| p.name.clone()).zip(params).collect();
-                let ctx = Ctx { scope, self_elem: elem, args: &args };
+                self.elems[elem as usize]
+                    .bound
+                    .insert((true, ci), (scope, handler.name.span));
+                let args: Vec<(String, Type)> = handler
+                    .params
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .zip(params)
+                    .collect();
+                let ctx = Ctx {
+                    scope,
+                    self_elem: elem,
+                    args: &args,
+                };
                 let body = self.stmts(&handler.body, &ctx);
                 self.elems[elem as usize].def.callbacks[ci as usize].handler = Some(body);
             }
@@ -510,7 +742,9 @@ impl<'a> Lowerer<'a> {
 
     /// `width: 50%` means half of the parent's width.
     fn percent_binding(&mut self, prop: &str, e: &ast::Expr, ctx: &Ctx) -> Option<Expr> {
-        let ExprKind::Number(v, _, Some(unit)) = &e.kind else { return None };
+        let ExprKind::Number(v, _, Some(unit)) = &e.kind else {
+            return None;
+        };
         if unit != "%" {
             return None;
         }
@@ -525,7 +759,10 @@ impl<'a> Lowerer<'a> {
         };
         Some(Expr::Binary(
             BinaryOp::Mul,
-            Box::new(Expr::Prop(PropRef { element: parent, property: axis })),
+            Box::new(Expr::Prop(PropRef {
+                element: parent,
+                property: axis,
+            })),
             Box::new(Expr::Literal(Value::Float((*v / 100.0) as f32))),
         ))
     }
@@ -555,7 +792,9 @@ impl<'a> Lowerer<'a> {
         for s in body {
             match s {
                 ast::Stmt::Assign { target, op, value } => {
-                    let Some((r, ty)) = self.resolve_prop_path(target, ctx) else { continue };
+                    let Some((r, ty)) = self.resolve_prop_path(target, ctx) else {
+                        continue;
+                    };
                     if !self.check_writable(r, ctx.scope, target.span) {
                         continue;
                     }
@@ -574,7 +813,14 @@ impl<'a> Lowerer<'a> {
                     if let ExprKind::Call(callee, args) = &e.kind {
                         if let Some((cb, params)) = self.resolve_callback(callee, ctx) {
                             if args.len() != params.len() {
-                                self.err(e.span, format!("expected {} argument(s), found {}", params.len(), args.len()));
+                                self.err(
+                                    e.span,
+                                    format!(
+                                        "expected {} argument(s), found {}",
+                                        params.len(),
+                                        args.len()
+                                    ),
+                                );
                                 continue;
                             }
                             let lowered = args
@@ -594,7 +840,11 @@ impl<'a> Lowerer<'a> {
                         self.warn(e.span, "expression statement has no effect");
                     }
                 }
-                ast::Stmt::If { cond, then, otherwise } => {
+                ast::Stmt::If {
+                    cond,
+                    then,
+                    otherwise,
+                } => {
                     let (c, t) = self.expr(cond, ctx, Some(Type::Bool));
                     let c = self.coerce(c, t, Type::Bool, cond.span);
                     let a = self.stmts(then, ctx);
@@ -607,7 +857,11 @@ impl<'a> Lowerer<'a> {
     }
 
     /// If `callee` names a callback, returns it.
-    fn resolve_callback(&mut self, callee: &ast::Expr, ctx: &Ctx) -> Option<(CallbackRef, Vec<Type>)> {
+    fn resolve_callback(
+        &mut self,
+        callee: &ast::Expr,
+        ctx: &Ctx,
+    ) -> Option<(CallbackRef, Vec<Type>)> {
         match &callee.kind {
             ExprKind::Ident(name) => {
                 if BuiltinFn::from_name(name).is_some() {
@@ -615,16 +869,30 @@ impl<'a> Lowerer<'a> {
                 }
                 for e in self.lookup_chain(ctx) {
                     if let Some((i, p)) = self.find_callback(e, name) {
-                        return Some((CallbackRef { element: e, callback: i }, p));
+                        return Some((
+                            CallbackRef {
+                                element: e,
+                                callback: i,
+                            },
+                            p,
+                        ));
                     }
                 }
                 None
             }
             ExprKind::Member(obj, field) => {
-                let ExprKind::Ident(obj_name) = &obj.kind else { return None };
+                let ExprKind::Ident(obj_name) = &obj.kind else {
+                    return None;
+                };
                 let target = self.element_ref(obj_name, ctx)?;
                 let (i, p) = self.find_callback(target, &field.name)?;
-                Some((CallbackRef { element: target, callback: i }, p))
+                Some((
+                    CallbackRef {
+                        element: target,
+                        callback: i,
+                    },
+                    p,
+                ))
             }
             _ => None,
         }
@@ -638,7 +906,9 @@ impl<'a> Lowerer<'a> {
         }
         match (from, to) {
             (Type::Int, Type::Float) => Expr::Convert(Type::Float, Box::new(e)),
-            (Type::Int | Type::Float | Type::Bool, Type::String) => Expr::Convert(Type::String, Box::new(e)),
+            (Type::Int | Type::Float | Type::Bool, Type::String) => {
+                Expr::Convert(Type::String, Box::new(e))
+            }
             (Type::Float, Type::Int) => {
                 error(
                     self.diags,
@@ -659,11 +929,19 @@ impl<'a> Lowerer<'a> {
         match &e.kind {
             ExprKind::Error => VOID,
             ExprKind::Number(v, dot, unit) => match unit.as_deref() {
-                None if !dot && *v <= i32::MAX as f64 => (Expr::Literal(Value::Int(*v as i32)), Type::Int),
+                None if !dot && *v <= i32::MAX as f64 => {
+                    (Expr::Literal(Value::Int(*v as i32)), Type::Int)
+                }
                 None | Some("px") => (Expr::Literal(Value::Float(*v as f32)), Type::Float),
-                Some("%") => (Expr::Literal(Value::Float((*v / 100.0) as f32)), Type::Float),
+                Some("%") => (
+                    Expr::Literal(Value::Float((*v / 100.0) as f32)),
+                    Type::Float,
+                ),
                 Some(u) => {
-                    self.err(e.span, format!("unknown unit `{u}`; supported units are `px` and `%`"));
+                    self.err(
+                        e.span,
+                        format!("unknown unit `{u}`; supported units are `px` and `%`"),
+                    );
                     VOID
                 }
             },
@@ -671,7 +949,10 @@ impl<'a> Lowerer<'a> {
             ExprKind::Color(c) => match Color::from_hex(c) {
                 Some(col) => (Expr::Literal(Value::Color(col)), Type::Color),
                 None => {
-                    self.err(e.span, format!("invalid color `{c}`; use #rgb, #rgba, #rrggbb or #rrggbbaa"));
+                    self.err(
+                        e.span,
+                        format!("invalid color `{c}`; use #rgb, #rgba, #rrggbb or #rrggbbaa"),
+                    );
                     VOID
                 }
             },
@@ -684,12 +965,18 @@ impl<'a> Lowerer<'a> {
                             Some(i) => (Expr::Literal(Value::Enum(*en, i)), Type::Enum(*en)),
                             None => {
                                 let hint = suggest(&field.name, en.variants().iter().copied());
-                                self.err_hint(field.span, format!("`{}` has no variant `{}`", en.name(), field.name), hint);
+                                self.err_hint(
+                                    field.span,
+                                    format!("`{}` has no variant `{}`", en.name(), field.name),
+                                    hint,
+                                );
                                 VOID
                             }
                         };
                     }
-                    if self.element_ref(obj_name, ctx).is_some() && !ctx.args.iter().any(|(n, _)| n == obj_name) {
+                    if self.element_ref(obj_name, ctx).is_some()
+                        && !ctx.args.iter().any(|(n, _)| n == obj_name)
+                    {
                         return match self.resolve_prop_path(e, ctx) {
                             Some((r, t)) => (Expr::Prop(r), t),
                             None => VOID,
@@ -731,13 +1018,19 @@ impl<'a> Lowerer<'a> {
                     (x, Type::Void) => x,
                     (Type::Int | Type::Float, Type::Int | Type::Float) => Type::Float,
                     (x, y) => {
-                        self.err(e.span, format!("branches have different types: `{x}` and `{y}`"));
+                        self.err(
+                            e.span,
+                            format!("branches have different types: `{x}` and `{y}`"),
+                        );
                         return VOID;
                     }
                 };
                 let ax = self.coerce(ax, at, ty, a.span);
                 let bx = self.coerce(bx, bt, ty, b.span);
-                (Expr::Conditional(Box::new(cx), Box::new(ax), Box::new(bx)), ty)
+                (
+                    Expr::Conditional(Box::new(cx), Box::new(ax), Box::new(bx)),
+                    ty,
+                )
             }
         }
     }
@@ -750,7 +1043,11 @@ impl<'a> Lowerer<'a> {
                 StrPart::Code(code, offset) => {
                     let parsed = parse_embedded_expr(code, span.file, *offset, self.diags);
                     let (x, t) = self.expr(&parsed, ctx, None);
-                    if t == Type::String { x } else { self.coerce(x, t, Type::String, parsed.span) }
+                    if t == Type::String {
+                        x
+                    } else {
+                        self.coerce(x, t, Type::String, parsed.span)
+                    }
                 }
             };
             acc = Some(match acc {
@@ -758,7 +1055,10 @@ impl<'a> Lowerer<'a> {
                 Some(prev) => Expr::Binary(BinaryOp::Add, Box::new(prev), Box::new(piece)),
             });
         }
-        (acc.unwrap_or(Expr::Literal(Value::String(String::new()))), Type::String)
+        (
+            acc.unwrap_or(Expr::Literal(Value::String(String::new()))),
+            Type::String,
+        )
     }
 
     fn ident(&mut self, name: &str, span: Span, ctx: &Ctx, expected: Option<Type>) -> (Expr, Type) {
@@ -772,7 +1072,15 @@ impl<'a> Lowerer<'a> {
         }
         for e in self.lookup_chain(ctx) {
             match self.find_prop(e, name, ctx.scope) {
-                Some(Ok((i, t))) => return (Expr::Prop(PropRef { element: e, property: i }), t),
+                Some(Ok((i, t))) => {
+                    return (
+                        Expr::Prop(PropRef {
+                            element: e,
+                            property: i,
+                        }),
+                        t,
+                    )
+                }
                 Some(Err(msg)) => {
                     self.err(span, msg);
                     return VOID;
@@ -781,7 +1089,12 @@ impl<'a> Lowerer<'a> {
             }
         }
         if self.element_ref(name, ctx).is_some() {
-            self.err(span, format!("`{name}` is an element; access one of its properties, e.g. `{name}.width`"));
+            self.err(
+                span,
+                format!(
+                    "`{name}` is an element; access one of its properties, e.g. `{name}.width`"
+                ),
+            );
             return VOID;
         }
         let mut cands: Vec<String> = ctx.args.iter().map(|(n, _)| n.clone()).collect();
@@ -796,24 +1109,35 @@ impl<'a> Lowerer<'a> {
         VOID
     }
 
-    fn call(&mut self, callee: &ast::Expr, args: &[ast::Expr], span: Span, ctx: &Ctx) -> (Expr, Type) {
+    fn call(
+        &mut self,
+        callee: &ast::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        ctx: &Ctx,
+    ) -> (Expr, Type) {
         let (f, mut lowered) = match &callee.kind {
-            ExprKind::Ident(name) => match BuiltinFn::from_name(name) {
-                Some(f) => (f, Vec::new()),
-                None => {
-                    if self.resolve_callback(callee, ctx).is_some() {
-                        self.err(span, "callbacks can only be called as a statement, e.g. `root.clicked();`");
-                    } else {
-                        let names = BuiltinFn::ALL.iter().map(|f| f.name());
-                        let hint = suggest(name, names);
-                        self.err_hint(callee.span, format!("unknown function `{name}`"), hint);
+            ExprKind::Ident(name) => {
+                match BuiltinFn::from_name(name) {
+                    Some(f) => (f, Vec::new()),
+                    None => {
+                        if self.resolve_callback(callee, ctx).is_some() {
+                            self.err(span, "callbacks can only be called as a statement, e.g. `root.clicked();`");
+                        } else {
+                            let names = BuiltinFn::ALL.iter().map(|f| f.name());
+                            let hint = suggest(name, names);
+                            self.err_hint(callee.span, format!("unknown function `{name}`"), hint);
+                        }
+                        return VOID;
                     }
-                    return VOID;
                 }
-            },
+            }
             ExprKind::Member(obj, method) => {
                 if self.resolve_callback(callee, ctx).is_some() {
-                    self.err(span, "callbacks can only be called as a statement, e.g. `root.clicked();`");
+                    self.err(
+                        span,
+                        "callbacks can only be called as a statement, e.g. `root.clicked();`",
+                    );
                     return VOID;
                 }
                 match BuiltinFn::from_name(&method.name) {
@@ -841,10 +1165,25 @@ impl<'a> Lowerer<'a> {
         let (params, ret): (Vec<Type>, Type) = match f {
             Min | Max | Clamp => {
                 let n = if f == Clamp { 3 } else { 2 };
-                let t = if types.iter().all(|t| *t == Type::Int) { Type::Int } else { Type::Float };
+                let t = if types.iter().all(|t| *t == Type::Int) {
+                    Type::Int
+                } else {
+                    Type::Float
+                };
                 (vec![t; n], t)
             }
-            Abs => (vec![if types.first() == Some(&Type::Int) { Type::Int } else { Type::Float }], types.first().copied().filter(|t| *t == Type::Int).unwrap_or(Type::Float)),
+            Abs => (
+                vec![if types.first() == Some(&Type::Int) {
+                    Type::Int
+                } else {
+                    Type::Float
+                }],
+                types
+                    .first()
+                    .copied()
+                    .filter(|t| *t == Type::Int)
+                    .unwrap_or(Type::Float),
+            ),
             Round | Floor | Ceil => (vec![Type::Float], Type::Int),
             Sqrt => (vec![Type::Float], Type::Float),
             Rgb => (vec![Type::Float; 3], Type::Color),
@@ -853,13 +1192,24 @@ impl<'a> Lowerer<'a> {
             Mix => (vec![Type::Color, Type::Color, Type::Float], Type::Color),
         };
         if lowered.len() != params.len() {
-            self.err(span, format!("`{}` takes {} argument(s), found {}", f.name(), params.len(), lowered.len()));
+            self.err(
+                span,
+                format!(
+                    "`{}` takes {} argument(s), found {}",
+                    f.name(),
+                    params.len(),
+                    lowered.len()
+                ),
+            );
             return VOID;
         }
         let mut out = Vec::new();
         for ((x, t), p) in lowered.into_iter().zip(&params) {
             if (num(*p) && !num(t)) || (!num(*p) && t != *p) {
-                self.err(span, format!("`{}` expects `{p}` arguments, found `{t}`", f.name()));
+                self.err(
+                    span,
+                    format!("`{}` expects `{p}` arguments, found `{t}`", f.name()),
+                );
                 return VOID;
             }
             out.push(self.coerce(x, t, *p, span));
@@ -867,7 +1217,13 @@ impl<'a> Lowerer<'a> {
         (Expr::Builtin(f, out), ret)
     }
 
-    fn binary(&mut self, op: &str, (a, at): (Expr, Type), (b, bt): (Expr, Type), span: Span) -> (Expr, Type) {
+    fn binary(
+        &mut self,
+        op: &str,
+        (a, at): (Expr, Type),
+        (b, bt): (Expr, Type),
+        span: Span,
+    ) -> (Expr, Type) {
         if at == Type::Void || bt == Type::Void {
             return VOID;
         }
@@ -889,25 +1245,47 @@ impl<'a> Lowerer<'a> {
         let mk = |a: Expr, b: Expr| Expr::Binary(bop, Box::new(a), Box::new(b));
         let numeric = at.is_numeric() && bt.is_numeric();
         let both_int = at == Type::Int && bt == Type::Int;
-        let to_f = |e: Expr, t: Type| if t == Type::Int { Expr::Convert(Type::Float, Box::new(e)) } else { e };
+        let to_f = |e: Expr, t: Type| {
+            if t == Type::Int {
+                Expr::Convert(Type::Float, Box::new(e))
+            } else {
+                e
+            }
+        };
         match bop {
             BinaryOp::Add if at == Type::String || bt == Type::String => {
-                let a = if at == Type::String { a } else { Expr::Convert(Type::String, Box::new(a)) };
-                let b = if bt == Type::String { b } else { Expr::Convert(Type::String, Box::new(b)) };
+                let a = if at == Type::String {
+                    a
+                } else {
+                    Expr::Convert(Type::String, Box::new(a))
+                };
+                let b = if bt == Type::String {
+                    b
+                } else {
+                    Expr::Convert(Type::String, Box::new(b))
+                };
                 (mk(a, b), Type::String)
             }
             BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Rem if numeric => {
-                if both_int { (mk(a, b), Type::Int) } else { (mk(to_f(a, at), to_f(b, bt)), Type::Float) }
+                if both_int {
+                    (mk(a, b), Type::Int)
+                } else {
+                    (mk(to_f(a, at), to_f(b, bt)), Type::Float)
+                }
             }
             BinaryOp::Div if numeric => (mk(to_f(a, at), to_f(b, bt)), Type::Float),
             BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge if numeric => {
                 (mk(to_f(a, at), to_f(b, bt)), Type::Bool)
             }
-            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge if at == Type::String && bt == Type::String => {
+            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
+                if at == Type::String && bt == Type::String =>
+            {
                 (mk(a, b), Type::Bool)
             }
             BinaryOp::Eq | BinaryOp::Ne if numeric || at == bt => (mk(a, b), Type::Bool),
-            BinaryOp::And | BinaryOp::Or if at == Type::Bool && bt == Type::Bool => (mk(a, b), Type::Bool),
+            BinaryOp::And | BinaryOp::Or if at == Type::Bool && bt == Type::Bool => {
+                (mk(a, b), Type::Bool)
+            }
             _ => {
                 self.err(span, format!("cannot apply `{op}` to `{at}` and `{bt}`"));
                 VOID

@@ -3,9 +3,8 @@
 //! Compiles `.ui` files to Rust at build time. In `build.rs`:
 //!
 //! ```no_run
-//! fn main() {
-//!     kite_build::compile("ui/app.ui");
-//! }
+//! // build.rs
+//! kite_build::compile("ui/app.ui");
 //! ```
 //!
 //! and in your crate: `kite::include_ui!("app");` (the file stem).
@@ -25,7 +24,10 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self { runtime_path: "::kite".into(), out_dir: None }
+        Self {
+            runtime_path: "::kite".into(),
+            out_dir: None,
+        }
     }
 }
 
@@ -57,7 +59,10 @@ pub fn compile_with_config(path: impl AsRef<Path>, config: Config) {
     if let Err(e) = try_compile(path.as_ref(), &config) {
         eprintln!("{e}");
         // A panic message is shown by cargo; keep it short since details are above.
-        panic!("kite-build: failed to compile `{}` (see errors above)", path.as_ref().display());
+        panic!(
+            "kite-build: failed to compile `{}` (see errors above)",
+            path.as_ref().display()
+        );
     }
 }
 
@@ -80,11 +85,18 @@ pub fn try_compile(path: &Path, config: &Config) -> Result<PathBuf, Error> {
     }
     let out_dir = match &config.out_dir {
         Some(d) => d.clone(),
-        None => PathBuf::from(std::env::var("OUT_DIR").map_err(|_| Error("OUT_DIR is not set; call from build.rs or set Config::out_dir".into()))?),
+        None => PathBuf::from(std::env::var("OUT_DIR").map_err(|_| {
+            Error("OUT_DIR is not set; call from build.rs or set Config::out_dir".into())
+        })?),
     };
-    let stem = path.file_stem().and_then(|s| s.to_str()).ok_or_else(|| Error(format!("bad file name `{}`", path.display())))?;
-    let code = kite_compiler::generate_rust(&compiled, &config.runtime_path, &path.display().to_string());
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| Error(format!("bad file name `{}`", path.display())))?;
+    let code =
+        kite_compiler::generate_rust(&compiled, &config.runtime_path, &path.display().to_string());
     let out = out_dir.join(format!("{stem}.rs"));
-    std::fs::write(&out, code).map_err(|e| Error(format!("cannot write `{}`: {e}", out.display())))?;
+    std::fs::write(&out, code)
+        .map_err(|e| Error(format!("cannot write `{}`: {e}", out.display())))?;
     Ok(out)
 }

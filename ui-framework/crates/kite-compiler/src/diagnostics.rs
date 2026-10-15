@@ -12,11 +12,19 @@ pub struct Span {
 
 impl Span {
     pub fn new(file: u32, start: usize, end: usize) -> Self {
-        Self { file, start: start as u32, end: end as u32 }
+        Self {
+            file,
+            start: start as u32,
+            end: end as u32,
+        }
     }
 
     pub fn to(self, other: Span) -> Span {
-        Span { file: self.file, start: self.start.min(other.start), end: self.end.max(other.end) }
+        Span {
+            file: self.file,
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        }
     }
 }
 
@@ -57,7 +65,12 @@ impl SourceMap {
         let offset = (offset as usize).min(src.len());
         let before = &src[..offset];
         let line = before.matches('\n').count() + 1;
-        let col = before.rsplit('\n').next().map(|l| l.chars().count()).unwrap_or(0) + 1;
+        let col = before
+            .rsplit('\n')
+            .next()
+            .map(|l| l.chars().count())
+            .unwrap_or(0)
+            + 1;
         (line, col)
     }
 }
@@ -94,13 +107,24 @@ impl Diagnostics {
             let (line, col) = self.sources.line_col(d.span.file, d.span.start);
             let path = self.sources.files[d.span.file as usize].0.display();
             let gutter = line.to_string().len();
-            let text = self.sources.source(d.span.file).lines().nth(line - 1).unwrap_or("");
+            let text = self
+                .sources
+                .source(d.span.file)
+                .lines()
+                .nth(line - 1)
+                .unwrap_or("");
             let span_len = (d.span.end.saturating_sub(d.span.start) as usize).max(1);
             let width = span_len.min(text.chars().count().saturating_sub(col - 1).max(1));
             out.push_str(&format!("{:gutter$}--> {path}:{line}:{col}\n", ""));
             out.push_str(&format!("{:gutter$} |\n", ""));
             out.push_str(&format!("{line} | {text}\n"));
-            out.push_str(&format!("{:gutter$} | {:pad$}{}", "", "", "^".repeat(width), pad = col - 1));
+            out.push_str(&format!(
+                "{:gutter$} | {:pad$}{}",
+                "",
+                "",
+                "^".repeat(width),
+                pad = col - 1
+            ));
             if let Some(label) = &d.label {
                 out.push(' ');
                 out.push_str(label);
@@ -154,7 +178,10 @@ mod tests {
 
     #[test]
     fn suggests_close_names() {
-        assert_eq!(suggest("colour", ["color", "text", "font-size"]), Some("color"));
+        assert_eq!(
+            suggest("colour", ["color", "text", "font-size"]),
+            Some("color")
+        );
         assert_eq!(suggest("zzz", ["color", "text"]), None);
     }
 }
