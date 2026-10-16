@@ -1,4 +1,0 @@
-/target
-# The repository root ignores `instance/` (a Flask convention); this Rust
-# module must be tracked.
-!/crates/kite-core/src/instance/
